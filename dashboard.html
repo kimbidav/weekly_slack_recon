@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Pipeline Reconciliation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .generate-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .generate-btn {
+            padding: 12px 24px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            background: #357abd;
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress-indicator {
+            font-size: 12px;
+            color: #666;
+            min-height: 16px;
+        }
+
+        .progress-indicator.active {
+            color: #4a90e2;
+        }
+
+        .progress-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .stat-value.closed { color: #d62728; }
+        .stat-value.explicit { color: #2ca02c; }
+        .stat-value.unclear { color: #ff7f0e; }
+        .stat-value.followup { color: #e377c2; }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        th.sortable::after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 10px;
+        }
+
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+            color: #4a90e2;
+        }
+
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+            color: #4a90e2;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-closed {
+            background: #fee;
+            color: #c33;
+        }
+
+        .status-explicit {
+            background: #efe;
+            color: #2a7;
+        }
+
+        .status-unclear {
+            background: #ffe;
+            color: #fa5;
+        }
+
+        .followup-badge {
+            background: #fef;
+            color: #c39;
+            margin-left: 8px;
+            font-size: 10px;
+        }
+
+        a {
+            color: #4a90e2;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .days-old {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        .error-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: #d62728;
+            background: #fee;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .loading {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Weekly Slack Pipeline Reconciliation</h1>
+                <div class="subtitle" id="generated-at">Loading...</div>
+            </div>
+            <div class="generate-section">
+                <button class="generate-btn" id="generate-btn" onclick="generateData()">Generate Data</button>
+                <div class="progress-indicator" id="progress-indicator"></div>
+            </div>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Submissions</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Closed</div>
+                <div class="stat-value closed" id="stat-closed">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Process (Explicit)</div>
+                <div class="stat-value explicit" id="stat-explicit">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Process (Unclear)</div>
+                <div class="stat-value unclear" id="stat-unclear">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Needs Follow-up</div>
+                <div class="stat-value followup" id="stat-followup">0</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="filter-status">
+                    <option value="">All Statuses</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="IN PROCESS — explicit">IN PROCESS — explicit</option>
+                    <option value="IN PROCESS — unclear">IN PROCESS — unclear</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Channel</label>
+                <select id="filter-channel">
+                    <option value="">All Channels</option>
+                </select>
+            </div>
+            <div class="filter-group search-box">
+                <label>Search Candidate</label>
+                <input type="text" id="search" placeholder="Search by candidate name...">
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loading" class="loading">Loading data...</div>
+            <div id="error" class="error-state" style="display: none;"></div>
+            <div id="empty" class="empty-state" style="display: none;">No submissions match the current filters.</div>
+            <table id="data-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="candidate_name">Candidate</th>
+                        <th class="sortable" data-sort="channel_name">Channel</th>
+                        <th class="sortable" data-sort="status">Status</th>
+                        <th class="sortable" data-sort="days_since_submission">Days Since Submission</th>
+                        <th>LinkedIn</th>
+                        <th>Status Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let sortColumn = 'candidate_name';
+        let sortDirection = 'asc';
+
+        // Load JSON data
+        async function loadData() {
+            try {
+                // Add cache-busting query param to ensure we get fresh data
+                const jsonPath = `weekly_slack_reconciliation.json?t=${Date.now()}`;
+                const response = await fetch(jsonPath);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        // No data file yet - show message to generate
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('error').style.display = 'block';
+                        document.getElementById('error').innerHTML = 
+                            'No data file found. Click "Generate Data" to start the reconciliation process.';
+                        document.getElementById('error').style.color = '#666';
+                        document.getElementById('error').style.background = '#f8f9fa';
+                        return;
+                    }
+                    throw new Error(`Failed to load ${jsonPath}`);
+                }
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.generated_at) {
+                    const date = new Date(data.generated_at);
+                    document.getElementById('generated-at').textContent = 
+                        `Generated: ${date.toLocaleString()}`;
+                }
+                
+                allData = data.submissions || [];
+                initializeFilters();
+                updateStats();
+                applyFilters();
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function initializeFilters() {
+            const channelSelect = document.getElementById('filter-channel');
+            const channels = [...new Set(allData.map(s => s.channel_name))].sort();
+            
+            channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = channel;
+                option.textContent = channel;
+                channelSelect.appendChild(option);
+            });
+        }
+
+        function updateStats() {
+            const total = allData.length;
+            const closed = allData.filter(s => s.status === 'CLOSED').length;
+            const explicit = allData.filter(s => s.status === 'IN PROCESS — explicit').length;
+            const unclear = allData.filter(s => s.status === 'IN PROCESS — unclear').length;
+            const followup = allData.filter(s => s.needs_followup).length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-closed').textContent = closed;
+            document.getElementById('stat-explicit').textContent = explicit;
+            document.getElementById('stat-unclear').textContent = unclear;
+            document.getElementById('stat-followup').textContent = followup;
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('filter-status').value;
+            const channelFilter = document.getElementById('filter-channel').value;
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
+            filteredData = allData.filter(submission => {
+                if (statusFilter && submission.status !== statusFilter) return false;
+                if (channelFilter && submission.channel_name !== channelFilter) return false;
+                if (searchTerm && !submission.candidate_name.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+
+            sortData();
+            renderTable();
+        }
+
+        function sortData() {
+            filteredData.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+
+                // Handle different data types
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const table = document.getElementById('data-table');
+            const empty = document.getElementById('empty');
+
+            if (filteredData.length === 0) {
+                table.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            table.style.display = 'table';
+            tbody.innerHTML = '';
+
+            filteredData.forEach(submission => {
+                const row = document.createElement('tr');
+                
+                const statusClass = submission.status === 'CLOSED' ? 'status-closed' :
+                                   submission.status === 'IN PROCESS — explicit' ? 'status-explicit' :
+                                   'status-unclear';
+                
+                const statusDisplay = submission.status === 'IN PROCESS — explicit' ? 
+                    'IN PROCESS — explicit' : submission.status;
+
+                row.innerHTML = `
+                    <td><strong>${escapeHtml(submission.candidate_name)}</strong></td>
+                    <td>${escapeHtml(submission.channel_name)}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">${statusDisplay}</span>
+                        ${submission.needs_followup ? '<span class="status-badge followup-badge">Follow-up</span>' : ''}
+                    </td>
+                    <td><span class="days-old">${submission.days_since_submission} days</span></td>
+                    <td><a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a></td>
+                    <td>${submission.status_reason ? escapeHtml(submission.status_reason) : '—'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update sort indicators
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.sort === sortColumn) {
+                    th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.getElementById('filter-status').addEventListener('change', applyFilters);
+        document.getElementById('filter-channel').addEventListener('change', applyFilters);
+        document.getElementById('search').addEventListener('input', applyFilters);
+
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.sort;
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'asc';
+                }
+                sortData();
+                renderTable();
+            });
+        });
+
+        // Generate data functions
+        let statusPollInterval = null;
+
+        async function generateData() {
+            const btn = document.getElementById('generate-btn');
+            const indicator = document.getElementById('progress-indicator');
+            
+            btn.disabled = true;
+            indicator.innerHTML = '<span class="progress-spinner"></span>Starting generation...';
+            indicator.classList.add('active');
+
+            try {
+                const response = await fetch('/api/generate');
+                if (!response.ok) {
+                    throw new Error('Failed to start generation');
+                }
+                
+                // Start polling for status
+                statusPollInterval = setInterval(pollStatus, 1000);
+                pollStatus(); // Poll immediately
+            } catch (error) {
+                indicator.textContent = `Error: ${error.message}`;
+                indicator.classList.remove('active');
+                btn.disabled = false;
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                const indicator = document.getElementById('progress-indicator');
+                const btn = document.getElementById('generate-btn');
+                
+                if (status.running) {
+                    indicator.innerHTML = `<span class="progress-spinner"></span>${status.progress || 'Processing...'}`;
+                    indicator.classList.add('active');
+                } else if (status.completed) {
+                    indicator.textContent = '✓ Generation complete!';
+                    indicator.classList.remove('active');
+                    btn.disabled = false;
+                    clearInterval(statusPollInterval);
+                    statusPollInterval = null;
+                    
+                    // Reload data after a short delay
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else if (status.error) {
+                    indicator.innerHTML = `✗ <strong style="color: #d62728;">Error:</strong> ${escapeHtml(status.error)}`;
+                    indicator.style.color = '#d62728';
+                    indicator.style.fontWeight = '600';
+                    indicator.classList.remove('active');
+                    btn.disabled = false;
+                    clearInterval(statusPollInterval);
+                    statusPollInterval = null;
+                    
+                    // Also show error in the main error box
+                    const errorDiv = document.getElementById('error');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = status.error;
+                    }
+                } else {
+                    // Not running, not completed, no error - just reset
+                    btn.disabled = false;
+                    indicator.textContent = '';
+                    indicator.classList.remove('active');
+                    if (statusPollInterval) {
+                        clearInterval(statusPollInterval);
+                        statusPollInterval = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling status:', error);
+            }
+        }
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
+

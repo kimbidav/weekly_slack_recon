@@ -1,0 +1,13 @@
+#!/bin/bash
+# Get the directory containing the app bundle (project root)
+APP_BUNDLE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+PROJECT_DIR="$(dirname "$APP_BUNDLE_DIR")"
+cd "$PROJECT_DIR"
+
+# Open Terminal window to show output
+osascript <<APPLESCRIPT
+tell application "Terminal"
+    activate
+    do script "cd \"$PROJECT_DIR\" && echo 'Starting Slack Reconciliation Dashboard...' && echo '' && source .venv/bin/activate && PYTHONPATH=src python serve_dashboard.py"
+end tell
+APPLESCRIPT

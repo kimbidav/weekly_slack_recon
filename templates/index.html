@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Pipeline Reconciliation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        
+        .control-group input,
+        .control-group select {
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        
+        .control-group input[type="range"] {
+            padding: 0;
+        }
+        
+        .range-value {
+            font-size: 0.85rem;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #28a745;
+            color: white;
+            margin-left: 0.5rem;
+        }
+        
+        .btn-secondary:hover {
+            background: #218838;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .filters {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filters select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #f8f9fa;
+        }
+        
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #dee2e6;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        th:hover {
+            background: #e9ecef;
+        }
+        
+        th.sort-asc::after {
+            content: " ▲";
+            font-size: 0.8em;
+        }
+        
+        th.sort-desc::after {
+            content: " ▼";
+            font-size: 0.8em;
+        }
+        
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-closed {
+            color: #d62728;
+            font-weight: 600;
+        }
+        
+        .status-explicit {
+            color: #2ca02c;
+            font-weight: 600;
+        }
+        
+        .status-unclear {
+            color: #ff7f0e;
+            font-weight: 600;
+        }
+        
+        .link {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .badge-yes {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Weekly Slack Pipeline Reconciliation</h1>
+        <p>Track candidate submissions across Slack channels</p>
+    </div>
+    
+    <div class="container">
+        <div class="controls">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label for="slack_token">Slack Token</label>
+                    <input type="password" id="slack_token" placeholder="xoxp-... or xoxb-..." value="{{ default_token }}">
+                </div>
+                
+                <div class="control-group">
+                    <label for="dk_email">DK Email</label>
+                    <input type="email" id="dk_email" value="dkimball@candidatelabs.com">
+                </div>
+                
+                <div class="control-group">
+                    <label for="lookback_days">Lookback Days: <span class="range-value" id="lookback_value">45</span></label>
+                    <input type="range" id="lookback_days" min="7" max="90" value="45">
+                </div>
+                
+                <div class="control-group">
+                    <label for="unclear_followup_days">Unclear Follow-up Days: <span class="range-value" id="unclear_value">7</span></label>
+                    <input type="range" id="unclear_followup_days" min="1" max="30" value="7">
+                </div>
+                
+                <div class="control-group">
+                    <label for="inactivity_days">Inactivity Days: <span class="range-value" id="inactivity_value">5</span></label>
+                    <input type="range" id="inactivity_days" min="1" max="30" value="5">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="include_confused_close">
+                            <span>Include :confused: as close signal</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn btn-primary" onclick="loadData()">🔄 Load Data</button>
+                <select id="export_format" style="padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px;">
+                    <option value="csv">Export CSV</option>
+                    <option value="md">Export Markdown</option>
+                </select>
+                <button class="btn btn-secondary" onclick="exportData()" id="export_btn" disabled>📥 Export</button>
+            </div>
+        </div>
+        
+        <div id="stats" class="stats" style="display: none;"></div>
+        <div id="error" style="display: none;"></div>
+        <div id="filters" class="filters" style="display: none;"></div>
+        <div id="table_container" class="table-container" style="display: none;"></div>
+    </div>
+    
+    <script>
+        let allSubmissions = [];
+        let filteredSubmissions = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        
+        // Update range value displays
+        document.getElementById('lookback_days').addEventListener('input', (e) => {
+            document.getElementById('lookback_value').textContent = e.target.value;
+        });
+        
+        document.getElementById('unclear_followup_days').addEventListener('input', (e) => {
+            document.getElementById('unclear_value').textContent = e.target.value;
+        });
+        
+        document.getElementById('inactivity_days').addEventListener('input', (e) => {
+            document.getElementById('inactivity_value').textContent = e.target.value;
+        });
+        
+        // Load token from input value (pre-filled from server) or localStorage
+        const inputToken = document.getElementById('slack_token').value;
+        if (!inputToken) {
+            const savedToken = localStorage.getItem('slack_token');
+            if (savedToken) {
+                document.getElementById('slack_token').value = savedToken;
+            }
+        }
+        
+        async function loadData() {
+            let token = document.getElementById('slack_token').value;
+            // If no token entered, try to use the default (hardcoded) one
+            if (!token) {
+                token = '{{ default_token }}';
+            }
+            if (!token) {
+                showError('Please enter your Slack token');
+                return;
+            }
+            
+            // Save token
+            localStorage.setItem('slack_token', token);
+            
+            const formData = new FormData();
+            formData.append('slack_token', token);
+            formData.append('dk_email', document.getElementById('dk_email').value);
+            formData.append('lookback_days', document.getElementById('lookback_days').value);
+            formData.append('unclear_followup_days', document.getElementById('unclear_followup_days').value);
+            formData.append('inactivity_days', document.getElementById('inactivity_days').value);
+            formData.append('include_confused_close', document.getElementById('include_confused_close').checked);
+            
+            document.getElementById('table_container').innerHTML = '<div class="loading">Loading data from Slack...</div>';
+            document.getElementById('table_container').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/load', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                allSubmissions = data.submissions;
+                filteredSubmissions = [...allSubmissions];
+                
+                displayStats(data.stats);
+                displayFilters();
+                displayTable();
+                document.getElementById('export_btn').disabled = false;
+            } catch (error) {
+                showError('Failed to load data: ' + error.message);
+            }
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerHTML = `<div class="error">❌ ${message}</div>`;
+            errorDiv.style.display = 'block';
+            document.getElementById('table_container').style.display = 'none';
+        }
+        
+        function displayStats(stats) {
+            const closed = allSubmissions.filter(s => s.status === 'CLOSED').length;
+            const explicit = allSubmissions.filter(s => s.status === 'IN PROCESS — explicit').length;
+            const unclear = allSubmissions.filter(s => s.status === 'IN PROCESS — unclear').length;
+            const needsFollowup = allSubmissions.filter(s => s.needs_followup).length;
+            
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${allSubmissions.length}</div>
+                    <div class="stat-label">Total Submissions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: #d62728;">${closed}</div>
+                    <div class="stat-label">Closed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: #2ca02c;">${explicit}</div>
+                    <div class="stat-label">In Process (Explicit)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: #ff7f0e;">${unclear}</div>
+                    <div class="stat-label">Unclear (${needsFollowup} need follow-up)</div>
+                </div>
+            `;
+            document.getElementById('stats').style.display = 'grid';
+        }
+        
+        function displayFilters() {
+            const channels = [...new Set(allSubmissions.map(s => s.channel_name))].sort();
+            const statuses = ['CLOSED', 'IN PROCESS — explicit', 'IN PROCESS — unclear'];
+            
+            document.getElementById('filters').innerHTML = `
+                <label><strong>Filters:</strong></label>
+                <select id="status_filter" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    ${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}
+                </select>
+                <select id="channel_filter" onchange="applyFilters()">
+                    <option value="">All Channels</option>
+                    ${channels.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+                <select id="followup_filter" onchange="applyFilters()">
+                    <option value="">All</option>
+                    <option value="yes">Needs Follow-up</option>
+                    <option value="no">No Follow-up Needed</option>
+                </select>
+                <span style="margin-left: auto; color: #666;">
+                    Showing ${filteredSubmissions.length} of ${allSubmissions.length} submissions
+                </span>
+            `;
+            document.getElementById('filters').style.display = 'flex';
+        }
+        
+        function applyFilters() {
+            const statusFilter = document.getElementById('status_filter').value;
+            const channelFilter = document.getElementById('channel_filter').value;
+            const followupFilter = document.getElementById('followup_filter').value;
+            
+            filteredSubmissions = allSubmissions.filter(s => {
+                if (statusFilter && s.status !== statusFilter) return false;
+                if (channelFilter && s.channel_name !== channelFilter) return false;
+                if (followupFilter === 'yes' && !s.needs_followup) return false;
+                if (followupFilter === 'no' && s.needs_followup) return false;
+                return true;
+            });
+            
+            displayTable();
+            document.getElementById('filters').querySelector('span').textContent = 
+                `Showing ${filteredSubmissions.length} of ${allSubmissions.length} submissions`;
+        }
+        
+        function displayTable() {
+            if (filteredSubmissions.length === 0) {
+                document.getElementById('table_container').innerHTML = '<div class="empty">No submissions match the current filters</div>';
+                return;
+            }
+            
+            const sorted = [...filteredSubmissions].sort((a, b) => {
+                if (!sortColumn) return 0;
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+                
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (sortDirection === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            const rows = sorted.map(s => {
+                const statusClass = s.status === 'CLOSED' ? 'status-closed' : 
+                                   s.status === 'IN PROCESS — explicit' ? 'status-explicit' : 'status-unclear';
+                const followupBadge = s.needs_followup ? '<span class="badge badge-yes">⚠️ Follow-up</span>' : '';
+                const date = new Date(s.submitted_at).toLocaleDateString();
+                
+                return `
+                    <tr>
+                        <td>${s.channel_name}</td>
+                        <td><strong>${s.candidate_name}</strong></td>
+                        <td><a href="${s.linkedin_url}" target="_blank" class="link">View Profile</a></td>
+                        <td class="${statusClass}">${s.status}</td>
+                        <td>${s.status_reason || ''}</td>
+                        <td>${date}</td>
+                        <td>${s.days_since_submission}</td>
+                        <td>${followupBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            document.getElementById('table_container').innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('channel_name')">Channel</th>
+                            <th onclick="sortTable('candidate_name')">Candidate</th>
+                            <th>LinkedIn</th>
+                            <th onclick="sortTable('status')">Status</th>
+                            <th>Status Reason</th>
+                            <th onclick="sortTable('submitted_at')">Submitted</th>
+                            <th onclick="sortTable('days_since_submission')">Days Ago</th>
+                            <th>Follow-up</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+            
+            updateSortIndicators();
+        }
+        
+        function sortTable(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            displayTable();
+        }
+        
+        function updateSortIndicators() {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            if (sortColumn) {
+                const header = Array.from(document.querySelectorAll('th')).find(th => 
+                    th.textContent.trim().toLowerCase().includes(sortColumn.replace('_', ' ').toLowerCase())
+                );
+                if (header) {
+                    header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            }
+        }
+        
+        async function exportData() {
+            const format = document.getElementById('export_format').value;
+            const dataToExport = filteredSubmissions.length > 0 ? filteredSubmissions : allSubmissions;
+            
+            if (format === 'csv') {
+                const formData = new FormData();
+                formData.append('submissions_json', JSON.stringify(dataToExport));
+                
+                const response = await fetch('/api/export/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `slack_reconciliation_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+            } else {
+                // Markdown export
+                const md = generateMarkdown(dataToExport);
+                const blob = new Blob([md], { type: 'text/markdown' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `slack_reconciliation_${new Date().toISOString().slice(0,10)}.md`;
+                a.click();
+            }
+        }
+        
+        function generateMarkdown(submissions) {
+            const grouped = {};
+            submissions.forEach(s => {
+                if (!grouped[s.channel_name]) grouped[s.channel_name] = [];
+                grouped[s.channel_name].push(s);
+            });
+            
+            let md = `# Weekly Slack Pipeline Reconciliation\n\n`;
+            md += `Generated at: ${new Date().toISOString()}\n\n`;
+            
+            Object.keys(grouped).sort().forEach(channel => {
+                md += `## ${channel}\n\n`;
+                const items = grouped[channel];
+                const closed = items.filter(s => s.status === 'CLOSED');
+                const explicit = items.filter(s => s.status === 'IN PROCESS — explicit');
+                const unclear = items.filter(s => s.status === 'IN PROCESS — unclear');
+                
+                if (closed.length > 0) {
+                    md += `### CLOSED\n`;
+                    closed.forEach(s => {
+                        md += `- ${s.candidate_name}${s.status_reason ? ' (' + s.status_reason + ')' : ''}\n`;
+                    });
+                    md += `\n`;
+                }
+                
+                if (explicit.length > 0) {
+                    md += `### IN PROCESS — explicit\n`;
+                    explicit.forEach(s => {
+                        md += `- ${s.candidate_name}\n`;
+                    });
+                    md += `\n`;
+                }
+                
+                if (unclear.length > 0) {
+                    md += `### IN PROCESS — unclear\n`;
+                    unclear.forEach(s => {
+                        const followup = s.needs_followup ? ' - needs follow-up' : '';
+                        md += `- ${s.candidate_name} (submitted ${s.days_since_submission} days ago)${followup}\n`;
+                    });
+                    md += `\n`;
+                }
+            });
+            
+            return md;
+        }
+    </script>
+</body>
+</html>
+
