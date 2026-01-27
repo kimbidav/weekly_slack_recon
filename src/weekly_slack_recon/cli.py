@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import sys
 from datetime import datetime, timezone
 
 from rich.console import Console
@@ -63,6 +65,24 @@ def main() -> None:
         for channel_name, text in snippets.items():
             console.print(f"\n[bold cyan][{channel_name}][/bold cyan]")
             console.print(text)
+
+
+def nudge_check() -> None:
+    """Run a nudge check (CLI entry point).
+    
+    Finds submissions without a checkmark or no-entry emoji for N days
+    and posts a follow-up message tagging David Kimball.
+    """
+    parser = argparse.ArgumentParser(description="Check for submissions needing nudges")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Don't send nudges, just show what would be sent",
+    )
+    args = parser.parse_args()
+    
+    from .realtime_monitor import run_single_check
+    run_single_check(dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

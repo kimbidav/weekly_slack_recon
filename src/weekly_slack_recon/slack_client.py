@@ -66,48 +66,37 @@ class SlackAPI:
         raise RuntimeError(f"No Slack user found for email {email}")
 
     def list_candidate_channels_for_user(self, user_id: str) -> List[Dict]:
-        """Return public/private channels whose name starts with 'candidatelabs-' and where user is a member."""
+        """Return public/private channels whose name starts with 'candidatelabs-' and where user is a member.
+        
+        Uses users_conversations API which directly returns only channels the user is in - much faster
+        than listing all channels and checking membership for each one.
+        """
 
         channels: List[Dict] = []
         cursor: Optional[str] = None
 
         while True:
             try:
-                resp = self.client.conversations_list(
+                # users_conversations returns only channels the user is a member of
+                resp = self.client.users_conversations(
+                    user=user_id,
                     types="public_channel,private_channel",
                     limit=1000,
                     cursor=cursor,
                 )
             except SlackApiError as e:
-                raise RuntimeError(f"Failed to list channels: {e.response['error']}") from e
+                raise RuntimeError(f"Failed to list user channels: {e.response['error']}") from e
 
             for ch in resp.get("channels", []):
                 name = ch.get("name", "")
-                if not name.startswith("candidatelabs-"):
-                    continue
-
-                # conversations_list may or may not include is_member depending on auth; fallback to membership check
-                if ch.get("is_member"):
+                if name.startswith("candidatelabs-"):
                     channels.append(ch)
-                else:
-                    if self._is_user_in_channel(ch["id"], user_id):
-                        channels.append(ch)
 
             cursor = resp.get("response_metadata", {}).get("next_cursor") or None
             if not cursor:
                 break
 
         return channels
-
-    def _is_user_in_channel(self, channel_id: str, user_id: str) -> bool:
-        try:
-            resp = self.client.conversations_members(channel=channel_id, limit=1000)
-        except SlackApiError:
-            # If we can't read members, assume not a member.
-            return False
-
-        members = resp.get("members", [])
-        return user_id in members
 
     def iter_channel_messages_since(self, channel_id: str, oldest_ts: float) -> Iterable[SlackMessage]:
         """Yield messages in a channel since a given Unix timestamp (inclusive)."""
@@ -195,6 +184,105 @@ class SlackAPI:
                     continue
         
         return []
+
+    def send_dm(
+        self,
+        user_id: str,
+        text: str,
+        max_retries: int = 3,
+    ) -> Optional[str]:
+        """Send a direct message to a user. Returns message ts if successful."""
+        for attempt in range(max_retries):
+            try:
+                # Open a DM channel with the user
+                resp = self.client.conversations_open(users=[user_id])
+                dm_channel = resp.get("channel", {}).get("id")
+                if not dm_channel:
+                    print(f"[ERROR] Could not open DM channel with user {user_id}")
+                    return None
+                
+                # Send the message
+                resp = self.client.chat_postMessage(
+                    channel=dm_channel,
+                    text=text,
+                )
+                return resp.get("ts")
+                
+            except SlackApiError as e:
+                error_code = e.response.get("error", "")
+                
+                if error_code == "ratelimited":
+                    retry_after = int(e.response.get("headers", {}).get("Retry-After", "60"))
+                    wait_time = retry_after + (attempt * 2)
+                    
+                    if attempt < max_retries - 1:
+                        print(f"[RATE LIMIT] Waiting {wait_time} seconds before retry...")
+                        time.sleep(wait_time)
+                        continue
+                
+                print(f"[ERROR] Failed to send DM: {error_code}")
+                return None
+        
+        return None
+
+    def get_workspace_domain(self) -> str:
+        """Get the workspace domain for building URLs."""
+        try:
+            resp = self.client.auth_test()
+            url = resp.get("url", "")
+            # URL is like https://candidatelabs.slack.com/
+            if url:
+                return url.rstrip("/").replace("https://", "")
+            return "slack.com"
+        except SlackApiError:
+            return "slack.com"
+
+    def post_thread_reply(
+        self,
+        channel_id: str,
+        thread_ts: str,
+        text: str,
+        max_retries: int = 3,
+    ) -> Optional[str]:
+        """Post a reply to a thread. Returns the message ts if successful, None otherwise.
+        
+        Args:
+            channel_id: The channel ID to post in
+            thread_ts: The thread timestamp to reply to
+            text: The message text (can include <@USER_ID> mentions)
+            max_retries: Number of retry attempts for rate limiting
+            
+        Returns:
+            The message timestamp if successful, None if failed
+        """
+        for attempt in range(max_retries):
+            try:
+                resp = self.client.chat_postMessage(
+                    channel=channel_id,
+                    thread_ts=thread_ts,
+                    text=text,
+                )
+                return resp.get("ts")
+                
+            except SlackApiError as e:
+                error_code = e.response.get("error", "")
+                
+                if error_code == "ratelimited":
+                    retry_after = int(e.response.get("headers", {}).get("Retry-After", "60"))
+                    wait_time = retry_after + (attempt * 2)
+                    
+                    if attempt < max_retries - 1:
+                        print(f"[RATE LIMIT] Waiting {wait_time} seconds before retry {attempt + 2}/{max_retries}...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"[WARNING] Rate limited for posting to {channel_id} thread {thread_ts} after {max_retries} attempts.")
+                        return None
+                
+                print(f"[ERROR] Failed to post thread reply to {channel_id} thread {thread_ts}: {error_code}")
+                return None
+        
+        return None
 
     @staticmethod
     def parse_ts(ts: str) -> datetime:

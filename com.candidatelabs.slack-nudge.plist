@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.candidatelabs.slack-nudge</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/david/Desktop/weekly_slack_recon/run_nudge_check.sh</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/david/Desktop/weekly_slack_recon</string>
+    
+    <!-- Run every hour at :00 minutes -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    
+    <!-- Also run when the agent is first loaded -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>/Users/david/Desktop/weekly_slack_recon/nudge.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/david/Desktop/weekly_slack_recon/nudge.log</string>
+    
+    <!-- Environment variables - reads from .env file via script -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>

@@ -17,6 +17,11 @@ class Config:
     inactivity_days: int = 5
     include_confused_close: bool = False
     output_markdown_path: Optional[str] = "weekly_slack_reconciliation.md"
+    # Nudge feature settings
+    nudge_days: int = 3  # Days without ✅ or ⛔ before nudging
+    slack_app_token: Optional[str] = None  # App-level token (xapp-...) for Socket Mode
+    dk_user_id: Optional[str] = None  # David Kimball's Slack user ID for tagging
+    nudge_tracker_path: str = ".nudge_tracker.json"  # Track nudged threads
 
     @property
     def lookback_timedelta(self) -> timedelta:
@@ -62,6 +67,12 @@ def load_config() -> Config:
 
     output_markdown_path = os.getenv("OUTPUT_MARKDOWN_PATH", "weekly_slack_reconciliation.md")
 
+    # Nudge feature settings
+    nudge_days = _int_env("NUDGE_DAYS", 3)
+    slack_app_token = os.getenv("SLACK_APP_TOKEN")  # xapp-... for Socket Mode
+    dk_user_id = os.getenv("DK_USER_ID")  # Can be set directly or looked up from email
+    nudge_tracker_path = os.getenv("NUDGE_TRACKER_PATH", ".nudge_tracker.json")
+
     return Config(
         slack_bot_token=slack_bot_token,
         dk_email=dk_email,
@@ -70,4 +81,8 @@ def load_config() -> Config:
         inactivity_days=inactivity_days,
         include_confused_close=include_confused_close,
         output_markdown_path=output_markdown_path,
+        nudge_days=nudge_days,
+        slack_app_token=slack_app_token,
+        dk_user_id=dk_user_id,
+        nudge_tracker_path=nudge_tracker_path,
     )

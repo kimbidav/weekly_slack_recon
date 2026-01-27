@@ -34,3 +34,7 @@ build/
 *.db
 *.sqlite
 *.sqlite3
+
+# Nudge tracker and logs (runtime state)
+.nudge_tracker.json
+nudge.log
