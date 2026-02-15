@@ -32,7 +32,7 @@ class NudgeRecord:
 
 
 class NudgeTracker:
-    """Tracks which threads have been nudged to avoid duplicates."""
+    """Tracks which threads have been nudged and when, to support re-nudging."""
 
     def __init__(self, tracker_path: str) -> None:
         self.tracker_path = Path(tracker_path)
@@ -64,6 +64,14 @@ class NudgeTracker:
         """Check if a thread has already been nudged."""
         key = self._make_key(channel_id, thread_ts)
         return key in self._nudged
+
+    def get_last_nudged_at(self, channel_id: str, thread_ts: str) -> Optional[datetime]:
+        """Return the datetime of the last nudge for a thread, or None if never nudged."""
+        key = self._make_key(channel_id, thread_ts)
+        record = self._nudged.get(key)
+        if record is None:
+            return None
+        return datetime.fromisoformat(record.nudged_at)
 
     def mark_nudged(
         self,
@@ -110,13 +118,14 @@ def find_submissions_needing_nudge(
     submissions: List[CandidateSubmission],
     tracker: NudgeTracker,
 ) -> List[CandidateSubmission]:
-    """Find submissions that need a nudge.
+    """Find submissions that need a nudge (or re-nudge).
     
     Criteria:
     1. Status is IN_PROCESS_UNCLEAR (no ✅ or ⛔)
     2. Days since submission >= nudge_days
-    3. Thread hasn't been nudged already
+    3. Either never nudged, or last nudge was >= nudge_days ago
     """
+    now = datetime.now(tz=timezone.utc)
     needing_nudge = []
     
     for sub in submissions:
@@ -124,16 +133,18 @@ def find_submissions_needing_nudge(
         if sub.status != StatusCategory.IN_PROCESS_UNCLEAR:
             continue
         
-        # Check if enough days have passed
+        # Check if enough days have passed since submission
         if sub.days_since_submission < cfg.nudge_days:
             continue
         
-        # Check if already nudged
-        # Note: We need the thread_ts, but CandidateSubmission doesn't have it directly.
-        # We'll need to track by channel_id + submitted_at timestamp
         thread_ts = str(sub.submitted_at.timestamp())
-        if tracker.is_nudged(sub.channel_id, thread_ts):
-            continue
+        last_nudged = tracker.get_last_nudged_at(sub.channel_id, thread_ts)
+        
+        if last_nudged is not None:
+            # Already nudged — only re-nudge if enough days have passed since last nudge
+            days_since_nudge = (now - last_nudged).days
+            if days_since_nudge < cfg.nudge_days:
+                continue
         
         needing_nudge.append(sub)
     
@@ -183,6 +194,7 @@ def run_nudge_check(
     cfg: Config,
     slack: Optional[SlackAPI] = None,
     dry_run: bool = False,
+    dm_only: Optional[bool] = None,
 ) -> Dict:
     """Run a full nudge check across all candidate channels.
     
@@ -190,6 +202,7 @@ def run_nudge_check(
         cfg: Configuration object
         slack: Optional SlackAPI instance (created if not provided)
         dry_run: If True, don't actually send nudges, just report what would be sent
+        dm_only: If True, only send DM summary (no thread replies). Defaults to cfg.nudge_dm_only.
         
     Returns:
         Dict with results: submissions_checked, nudges_needed, nudges_sent
@@ -241,12 +254,34 @@ def run_nudge_check(
         ],
     }
     
+    # Resolve dm_only: CLI flag overrides, then fall back to config
+    if dm_only is None:
+        dm_only = cfg.nudge_dm_only
+
     if dry_run:
         print("[DRY RUN] Would send the following nudges:")
+        if dm_only:
+            print("[DRY RUN] Mode: DM-only (no thread replies)")
         for sub in needing_nudge:
             print(f"  - {sub.candidate_name} in #{sub.channel_name} ({sub.days_since_submission} days)")
+    elif dm_only:
+        # DM-only mode: skip thread replies, send DM summary, still mark as nudged
+        print("[DM-ONLY] Skipping thread replies, will send DM summary only")
+        for sub in needing_nudge:
+            thread_ts = f"{sub.submitted_at.timestamp():.6f}"
+            tracker.mark_nudged(
+                channel_id=sub.channel_id,
+                thread_ts=thread_ts,
+                candidate_name=sub.candidate_name,
+                linkedin_url=sub.linkedin_url,
+            )
+            results["nudges_sent"] += 1
+            print(f"[DM-ONLY] Marked nudge for {sub.candidate_name} in #{sub.channel_name}")
+
+        if needing_nudge:
+            _send_nudge_summary_dm(slack, dk_user_id, needing_nudge)
     else:
-        # Send nudges and collect successful ones for DM summary
+        # Full mode: post thread replies + DM summary
         nudged_submissions = []
         for sub in needing_nudge:
             if send_nudge(slack, cfg, sub, tracker, dk_user_id):

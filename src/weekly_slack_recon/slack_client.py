@@ -284,6 +284,41 @@ class SlackAPI:
         
         return None
 
+    def post_channel_message(
+        self,
+        channel_id: str,
+        text: str,
+        max_retries: int = 3,
+    ) -> Optional[str]:
+        """Post a top-level message to a channel. Returns message ts if successful."""
+        for attempt in range(max_retries):
+            try:
+                resp = self.client.chat_postMessage(
+                    channel=channel_id,
+                    text=text,
+                )
+                return resp.get("ts")
+
+            except SlackApiError as e:
+                error_code = e.response.get("error", "")
+
+                if error_code == "ratelimited":
+                    retry_after = int(e.response.get("headers", {}).get("Retry-After", "60"))
+                    wait_time = retry_after + (attempt * 2)
+
+                    if attempt < max_retries - 1:
+                        print(f"[RATE LIMIT] Waiting {wait_time} seconds before retry {attempt + 2}/{max_retries}...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"[WARNING] Rate limited for posting to {channel_id} after {max_retries} attempts.")
+                        return None
+
+                print(f"[ERROR] Failed to post message to {channel_id}: {error_code}")
+                return None
+
+        return None
+
     @staticmethod
     def parse_ts(ts: str) -> datetime:
         # Slack timestamps are like "1701985150.000200" (seconds.micros)

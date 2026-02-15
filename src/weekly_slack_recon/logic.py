@@ -38,6 +38,7 @@ class CandidateSubmission:
     status_reason: Optional[str]
     days_since_submission: int
     needs_followup: bool
+    slack_url: Optional[str] = None
 
 
 def extract_linkedin_urls(text: str) -> List[str]:
@@ -274,6 +275,9 @@ def build_candidate_submissions(
 
     oldest_ts = (now - cfg.lookback_timedelta).timestamp()
 
+    # Fetch workspace domain once for building Slack permalink URLs
+    workspace_domain = slack.get_workspace_domain()
+
     channel_id_to_name: Dict[str, str] = {c["id"]: c.get("name", c["id"]) for c in channels}
 
     submissions: List[CandidateSubmission] = []
@@ -339,6 +343,15 @@ def build_candidate_submissions(
                     and inactivity_days >= cfg.inactivity_days
                 )
 
+                # Build Slack permalink that opens the thread directly:
+                # Adding thread_ts and cid params makes Slack open the thread panel
+                # so cmd-click opens each thread in its own window.
+                msg_ts_no_dot = msg.ts.replace('.', '')
+                slack_url = (
+                    f"https://{workspace_domain}/archives/{channel_id}/p{msg_ts_no_dot}"
+                    f"?thread_ts={msg.ts}&cid={channel_id}"
+                )
+
                 submissions.append(
                     CandidateSubmission(
                         candidate_name=candidate_name,
@@ -350,6 +363,7 @@ def build_candidate_submissions(
                         status_reason=status_reason,
                         days_since_submission=days_since_submission,
                         needs_followup=needs_followup,
+                        slack_url=slack_url,
                     )
                 )
 

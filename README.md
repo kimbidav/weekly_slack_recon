@@ -186,7 +186,67 @@ DK is **not** required to:
 - Submissions without ⛔ and without explicit progress signals must appear under: **IN PROCESS — unclear**.
 - Weekly output must contain all DK submissions in relevant channels within the lookback window.
 
+### AI Enrichment (LLM-Powered Summaries)
+
+The dashboard includes an **"Enrich with AI"** button that uses Claude to generate concise, bullet-point summaries for each candidate — so you don't have to read through individual Slack threads to know what's happening.
+
+#### How it works
+
+1. **Context gathering**: For each candidate, the tool collects:
+   - The full submission thread (all replies from any user, including external contacts)
+   - Channel-wide messages that mention the candidate by name (within the lookback window), plus threads on those messages
+   - Name matching includes common nicknames (e.g., "Andrew" also searches for "Andy", "Drew")
+
+2. **LLM analysis**: The gathered context is sent to Claude, which produces a chronological bullet-point summary of key developments (interviews, feedback, offers, rejections, next steps, etc.)
+
+3. **Dashboard display**: Summaries appear in the "AI Summary" column and are persisted in the JSON data file.
+
+#### Setup
+
+Add your Anthropic API key to `.env`:
+
+```env
+ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+
+Optional settings:
+
+```env
+ENRICHMENT_MODEL=claude-sonnet-4-20250514    # Claude model to use
+ENRICHMENT_MAX_TOKENS=500                  # Max tokens per summary
+```
+
+#### Usage
+
+1. Run **Generate Data** first to create the submissions dataset
+2. Click **Enrich with AI** to run enrichment on all candidates
+3. Progress is shown in the header (gathering context, then analyzing with Claude)
+4. Summaries are saved to the JSON file and persist across page reloads
+
+#### Future: Email & Calendar Integration
+
+Planned additional context sources:
+- **Gmail integration**: Capture email threads with candidates (matched via Gem.com API using LinkedIn-to-email mapping)
+- **Calendar integration**: Detect interview events (e.g., "Andrew x Argus" on calendar)
+
+### Architecture
+
+```
+src/weekly_slack_recon/
+├── config.py              # Environment-based configuration
+├── slack_client.py        # Slack API wrapper (read messages, post replies/DMs)
+├── logic.py               # Core: LinkedIn extraction, status inference, submission building
+├── status_rules.py        # Emoji/keyword classification rules
+├── reporting.py           # Output: console (rich), Markdown, CSV, JSON
+├── nudge.py               # Auto-nudge for stale submissions
+├── realtime_monitor.py    # Scheduled nudge runner (cron/launchd)
+├── context_gatherer.py    # Gathers Slack context for LLM enrichment
+├── enrichment.py          # Claude-powered candidate summary generation
+└── cli.py                 # CLI entry points
+```
+
 ### Notes
 
-- This is intentionally **read-only** and does **not** auto-post to Slack.
+- This is intentionally **read-only** and does **not** auto-post to Slack (except for the nudge and follow-up features which can be enabled separately).
 - Logic for emojis/keywords and thresholds is implemented in a modular way in `status_rules.py` and `logic.py`, so it's easy to tweak.
+- AI enrichment results are merged into the existing JSON data file, so re-running "Generate Data" will clear them (re-enrich after regenerating).

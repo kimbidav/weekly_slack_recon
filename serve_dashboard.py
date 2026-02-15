@@ -4,6 +4,7 @@ HTTP server to serve the dashboard with API endpoints for data generation
 """
 import http.server
 import socketserver
+import traceback
 import webbrowser
 import os
 import sys
@@ -11,7 +12,7 @@ import json
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -19,8 +20,12 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from dotenv import load_dotenv
 from weekly_slack_recon.config import load_config
 from weekly_slack_recon.slack_client import SlackAPI
-from weekly_slack_recon.logic import build_candidate_submissions
+from weekly_slack_recon.logic import build_candidate_submissions, CandidateSubmission
 from weekly_slack_recon.reporting import write_markdown, write_json
+from weekly_slack_recon.enrichment import enrich_submissions
+
+# Cached SlackAPI instance for follow-up sends
+_slack_instance: SlackAPI = None
 
 PORT = 8001
 DIRECTORY = Path(__file__).parent
@@ -32,6 +37,18 @@ generation_status = {
     "progress": "",
     "error": None,
     "completed": False
+}
+
+# Global state for enrichment progress
+enrichment_status = {
+    "running": False,
+    "phase": "",        # "gathering", "analyzing", "complete"
+    "current": 0,
+    "total": 0,
+    "detail": "",
+    "error": None,
+    "completed": False,
+    "results": None,    # List of enrichment result dicts when done
 }
 
 
@@ -57,6 +74,10 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_status()
         elif parsed_path.path == '/api/generate':
             self.handle_api_generate()
+        elif parsed_path.path == '/api/enrich/status':
+            self.handle_api_enrich_status()
+        elif parsed_path.path == '/api/enrich/results':
+            self.handle_api_enrich_results()
         else:
             # Serve static files
             super().do_GET()
@@ -66,6 +87,10 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         if parsed_path.path == '/api/generate':
             self.handle_api_generate_post()
+        elif parsed_path.path == '/api/send-followup':
+            self.handle_api_send_followup()
+        elif parsed_path.path == '/api/enrich':
+            self.handle_api_enrich()
         else:
             self.send_error(404)
     
@@ -102,7 +127,7 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         try:
             settings = json.loads(body) if body else {}
-        except:
+        except (json.JSONDecodeError, ValueError):
             settings = {}
         
         if generation_status["running"]:
@@ -120,6 +145,110 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps({"status": "started"}).encode())
+
+
+    def handle_api_send_followup(self):
+        """Send a follow-up message to a Slack channel."""
+        global _slack_instance
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+
+        try:
+            payload = json.loads(body)
+        except Exception:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        channel_id = payload.get("channel_id")
+        message = payload.get("message")
+
+        if not channel_id or not message:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "channel_id and message are required"}).encode())
+            return
+
+        try:
+            if _slack_instance is None:
+                cfg = load_config()
+                _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+            ts = _slack_instance.post_channel_message(channel_id, message)
+
+            if ts:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "ts": ts}).encode())
+            else:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Failed to send message"}).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+
+    def handle_api_enrich_status(self):
+        """Return current enrichment status."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        # Don't send full results in status poll (too large); client fetches them separately
+        status_copy = {k: v for k, v in enrichment_status.items() if k != "results"}
+        status_copy["has_results"] = enrichment_status["results"] is not None
+        response = json.dumps(status_copy)
+        self.wfile.write(response.encode())
+
+    def handle_api_enrich(self):
+        """Start enrichment in background. POST body can specify candidate filters."""
+        global enrichment_status
+
+        if enrichment_status["running"]:
+            self.send_response(409)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Enrichment already in progress"}).encode())
+            return
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception:
+            payload = {}
+
+        # Start enrichment in background thread
+        thread = threading.Thread(target=run_enrichment, args=(payload,), daemon=True)
+        thread.start()
+
+        self.send_response(202)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "started"}).encode())
+
+    def handle_api_enrich_results(self):
+        """Return enrichment results (called after enrichment completes)."""
+        if enrichment_status["results"] is None:
+            self.send_response(404)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "No enrichment results available"}).encode())
+            return
+
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"results": enrichment_status["results"]}).encode())
 
 
 def update_progress(message: str):
@@ -187,6 +316,130 @@ def run_generation(settings: dict = None):
         generation_status["running"] = False
         update_progress(f"Error: {error_msg}")
         print(f"[ERROR] {error_msg}")
+
+
+def run_enrichment(payload: dict = None):
+    """Run LLM enrichment on current submissions data."""
+    global enrichment_status
+
+    enrichment_status = {
+        "running": True,
+        "phase": "starting",
+        "current": 0,
+        "total": 0,
+        "detail": "Loading data...",
+        "error": None,
+        "completed": False,
+        "results": None,
+    }
+
+    try:
+        # Load existing JSON data
+        json_path = DIRECTORY / "weekly_slack_reconciliation.json"
+        if not json_path.exists():
+            enrichment_status["error"] = "No submission data found. Run 'Generate Data' first."
+            enrichment_status["running"] = False
+            return
+
+        with open(json_path, "r") as f:
+            data = json.load(f)
+
+        submissions_data = data.get("submissions", [])
+        if not submissions_data:
+            enrichment_status["error"] = "No submissions in data file."
+            enrichment_status["running"] = False
+            return
+
+        # Filter candidates if payload specifies which ones
+        filter_statuses = (payload or {}).get("statuses")  # e.g. ["IN PROCESS — unclear"]
+        filter_channels = (payload or {}).get("channels")  # e.g. ["candidatelabs-argus"]
+
+        # Convert JSON dicts back to CandidateSubmission objects
+        # Skip CLOSED candidates — only enrich active ones to save tokens
+        filtered_submissions = []
+        for s in submissions_data:
+            if s["status"] == "CLOSED":
+                continue
+            if filter_statuses and s["status"] not in filter_statuses:
+                continue
+            if filter_channels and s["channel_name"] not in filter_channels:
+                continue
+            submitted_at = datetime.fromisoformat(s["submitted_at"])
+            filtered_submissions.append(CandidateSubmission(
+                candidate_name=s["candidate_name"],
+                linkedin_url=s["linkedin_url"],
+                channel_name=s["channel_name"],
+                channel_id=s["channel_id"],
+                submitted_at=submitted_at,
+                status=s["status"],
+                status_reason=s.get("status_reason"),
+                days_since_submission=s["days_since_submission"],
+                needs_followup=s["needs_followup"],
+                slack_url=s.get("slack_url"),
+            ))
+
+        if not filtered_submissions:
+            enrichment_status["error"] = "No submissions match the filter criteria."
+            enrichment_status["running"] = False
+            return
+
+        enrichment_status["total"] = len(filtered_submissions)
+        enrichment_status["detail"] = f"Enriching {len(filtered_submissions)} candidates..."
+
+        cfg = load_config()
+        slack = SlackAPI(token=cfg.slack_bot_token)
+
+        def progress_callback(phase, current, total, detail):
+            enrichment_status["phase"] = phase
+            enrichment_status["current"] = current
+            enrichment_status["total"] = total
+            enrichment_status["detail"] = detail
+            print(f"[ENRICH] {phase}: {current}/{total} - {detail}")
+
+        results = enrich_submissions(cfg, slack, filtered_submissions, progress_callback=progress_callback)
+
+        # Store results
+        enrichment_status["results"] = [r.to_dict() for r in results]
+
+        # Also merge results into the JSON file so the dashboard can show them
+        _merge_enrichment_into_json(json_path, results)
+
+        enrichment_status["phase"] = "complete"
+        enrichment_status["completed"] = True
+        enrichment_status["running"] = False
+        enrichment_status["detail"] = f"Done! Enriched {len(results)} candidates."
+
+    except Exception as e:
+        error_msg = str(e)
+        enrichment_status["error"] = error_msg
+        enrichment_status["running"] = False
+        enrichment_status["detail"] = f"Error: {error_msg}"
+        print(f"[ENRICH ERROR] {error_msg}")
+        traceback.print_exc()
+
+
+def _merge_enrichment_into_json(json_path: Path, results: list):
+    """Merge enrichment results back into the submissions JSON file."""
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    # Build lookup: (candidate_name, channel_name) -> result
+    result_lookup = {}
+    for r in results:
+        key = (r.candidate_name, r.channel_name)
+        result_lookup[key] = r
+
+    for sub in data.get("submissions", []):
+        key = (sub["candidate_name"], sub["channel_name"])
+        result = result_lookup.get(key)
+        if result:
+            sub["ai_summary"] = result.ai_summary
+            sub["ai_enriched_at"] = result.enriched_at
+
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    print(f"[ENRICH] Merged {len(result_lookup)} enrichment results into {json_path}")
 
 
 def main():

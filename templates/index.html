@@ -271,6 +271,123 @@
         .checkbox-group input[type="checkbox"] {
             width: auto;
         }
+
+        /* Multi-select status filter */
+        .multi-select {
+            position: relative;
+            min-width: 220px;
+            display: inline-block;
+        }
+
+        .multi-select-toggle {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            user-select: none;
+            min-height: 38px;
+        }
+
+        .multi-select-toggle:hover {
+            border-color: #bbb;
+        }
+
+        .multi-select.open .multi-select-toggle {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .multi-select-toggle .arrow {
+            font-size: 10px;
+            color: #999;
+            transition: transform 0.2s;
+        }
+
+        .multi-select.open .multi-select-toggle .arrow {
+            transform: rotate(180deg);
+        }
+
+        .multi-select-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding: 4px 0;
+        }
+
+        .multi-select.open .multi-select-dropdown {
+            display: block;
+        }
+
+        .multi-select-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.15s;
+        }
+
+        .multi-select-option:hover {
+            background: #f5f7fa;
+        }
+
+        .multi-select-option input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+            accent-color: #667eea;
+            width: auto;
+        }
+
+        .multi-select-option label {
+            cursor: pointer;
+            flex: 1;
+            font-size: 0.85rem;
+        }
+
+        .multi-select-divider {
+            height: 1px;
+            background: #eee;
+            margin: 4px 0;
+        }
+
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #e8eaf6;
+            color: #667eea;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .selected-placeholder {
+            color: #999;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -452,10 +569,27 @@
             
             document.getElementById('filters').innerHTML = `
                 <label><strong>Filters:</strong></label>
-                <select id="status_filter" onchange="applyFilters()">
-                    <option value="">All Statuses</option>
-                    ${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}
-                </select>
+                <div class="multi-select" id="status-multi-select">
+                    <div class="multi-select-toggle" tabindex="0">
+                        <div class="selected-tags">
+                            <span class="selected-placeholder">All Statuses</span>
+                        </div>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="multi-select-dropdown">
+                        <div class="multi-select-option" data-value="">
+                            <input type="checkbox" id="status-all" checked>
+                            <label for="status-all">All Statuses</label>
+                        </div>
+                        <div class="multi-select-divider"></div>
+                        ${statuses.map((s, i) => `
+                            <div class="multi-select-option" data-value="${s}">
+                                <input type="checkbox" id="status-opt-${i}">
+                                <label for="status-opt-${i}">${s}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
                 <select id="channel_filter" onchange="applyFilters()">
                     <option value="">All Channels</option>
                     ${channels.map(c => `<option value="${c}">${c}</option>`).join('')}
@@ -465,20 +599,34 @@
                     <option value="yes">Needs Follow-up</option>
                     <option value="no">No Follow-up Needed</option>
                 </select>
-                <span style="margin-left: auto; color: #666;">
+                <span id="filter-count" style="margin-left: auto; color: #666;">
                     Showing ${filteredSubmissions.length} of ${allSubmissions.length} submissions
                 </span>
             `;
             document.getElementById('filters').style.display = 'flex';
+            initMultiSelect();
         }
         
+        function getSelectedStatuses() {
+            const allCheckbox = document.getElementById('status-all');
+            if (allCheckbox && allCheckbox.checked) return [];
+            const checkboxes = document.querySelectorAll('#status-multi-select .multi-select-option[data-value]:not([data-value=""]) input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selected.push(cb.closest('.multi-select-option').dataset.value);
+                }
+            });
+            return selected;
+        }
+
         function applyFilters() {
-            const statusFilter = document.getElementById('status_filter').value;
+            const selectedStatuses = getSelectedStatuses();
             const channelFilter = document.getElementById('channel_filter').value;
             const followupFilter = document.getElementById('followup_filter').value;
             
             filteredSubmissions = allSubmissions.filter(s => {
-                if (statusFilter && s.status !== statusFilter) return false;
+                if (selectedStatuses.length > 0 && !selectedStatuses.includes(s.status)) return false;
                 if (channelFilter && s.channel_name !== channelFilter) return false;
                 if (followupFilter === 'yes' && !s.needs_followup) return false;
                 if (followupFilter === 'no' && s.needs_followup) return false;
@@ -486,8 +634,79 @@
             });
             
             displayTable();
-            document.getElementById('filters').querySelector('span').textContent = 
-                `Showing ${filteredSubmissions.length} of ${allSubmissions.length} submissions`;
+            const countSpan = document.getElementById('filter-count');
+            if (countSpan) {
+                countSpan.textContent = `Showing ${filteredSubmissions.length} of ${allSubmissions.length} submissions`;
+            }
+        }
+
+        function initMultiSelect() {
+            const container = document.getElementById('status-multi-select');
+            if (!container) return;
+            const toggle = container.querySelector('.multi-select-toggle');
+            const allCheckbox = document.getElementById('status-all');
+            const statusCheckboxes = container.querySelectorAll('.multi-select-option[data-value]:not([data-value=""]) input[type="checkbox"]');
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                container.classList.toggle('open');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove('open');
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') container.classList.remove('open');
+            });
+
+            allCheckbox.addEventListener('change', () => {
+                if (allCheckbox.checked) {
+                    statusCheckboxes.forEach(cb => cb.checked = false);
+                }
+                updateToggleDisplay();
+                applyFilters();
+            });
+
+            statusCheckboxes.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const anyChecked = Array.from(statusCheckboxes).some(c => c.checked);
+                    allCheckbox.checked = !anyChecked;
+                    if (!anyChecked) allCheckbox.checked = true;
+                    updateToggleDisplay();
+                    applyFilters();
+                });
+            });
+
+            container.querySelectorAll('.multi-select-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = opt.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                    e.stopPropagation();
+                });
+            });
+
+            function updateToggleDisplay() {
+                const tagsContainer = container.querySelector('.selected-tags');
+                const selected = getSelectedStatuses();
+                if (selected.length === 0) {
+                    tagsContainer.innerHTML = '<span class="selected-placeholder">All Statuses</span>';
+                } else {
+                    const shortLabels = {
+                        'CLOSED': 'Closed',
+                        'IN PROCESS — explicit': 'Explicit',
+                        'IN PROCESS — unclear': 'Unclear'
+                    };
+                    tagsContainer.innerHTML = selected
+                        .map(s => `<span class="selected-tag">${shortLabels[s] || s}</span>`)
+                        .join('');
+                }
+            }
         }
         
         function displayTable() {
@@ -525,7 +744,7 @@
                         <td><strong>${s.candidate_name}</strong></td>
                         <td><a href="${s.linkedin_url}" target="_blank" class="link">View Profile</a></td>
                         <td class="${statusClass}">${s.status}</td>
-                        <td>${s.status_reason || ''}</td>
+                        <td>${s.slack_url ? `<a href="${s.slack_url}" target="_blank" class="link">View Thread</a>` : ''}</td>
                         <td>${date}</td>
                         <td>${s.days_since_submission}</td>
                         <td>${followupBadge}</td>
@@ -541,7 +760,7 @@
                             <th onclick="sortTable('candidate_name')">Candidate</th>
                             <th>LinkedIn</th>
                             <th onclick="sortTable('status')">Status</th>
-                            <th>Status Reason</th>
+                            <th>Slack</th>
                             <th onclick="sortTable('submitted_at')">Submitted</th>
                             <th onclick="sortTable('days_since_submission')">Days Ago</th>
                             <th>Follow-up</th>

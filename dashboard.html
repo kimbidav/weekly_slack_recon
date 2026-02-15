@@ -182,6 +182,122 @@
             min-width: 200px;
         }
 
+        /* Multi-select status filter */
+        .multi-select {
+            position: relative;
+            min-width: 220px;
+        }
+
+        .multi-select-toggle {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            user-select: none;
+            min-height: 38px;
+        }
+
+        .multi-select-toggle:hover {
+            border-color: #bbb;
+        }
+
+        .multi-select-toggle:focus-within,
+        .multi-select.open .multi-select-toggle {
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .multi-select-toggle .arrow {
+            font-size: 10px;
+            color: #999;
+            transition: transform 0.2s;
+        }
+
+        .multi-select.open .multi-select-toggle .arrow {
+            transform: rotate(180deg);
+        }
+
+        .multi-select-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding: 4px 0;
+        }
+
+        .multi-select.open .multi-select-dropdown {
+            display: block;
+        }
+
+        .multi-select-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.15s;
+        }
+
+        .multi-select-option:hover {
+            background: #f5f7fa;
+        }
+
+        .multi-select-option input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+            accent-color: #4a90e2;
+        }
+
+        .multi-select-option label {
+            cursor: pointer;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .multi-select-divider {
+            height: 1px;
+            background: #eee;
+            margin: 4px 0;
+        }
+
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .selected-placeholder {
+            color: #999;
+            font-size: 14px;
+        }
+
         .table-container {
             background: white;
             border-radius: 8px;
@@ -313,6 +429,317 @@
             text-align: center;
             color: #666;
         }
+
+        /* Checkbox column */
+        th.col-select, td.col-select {
+            width: 40px;
+            text-align: center;
+            cursor: default;
+        }
+
+        th.col-select {
+            cursor: default;
+        }
+
+        td.col-select input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #4a90e2;
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Follow-up bar (sticky bottom) */
+        .followup-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 2px solid #4a90e2;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 200;
+            transform: translateY(100%);
+            transition: transform 0.25s ease;
+        }
+
+        .followup-bar.visible {
+            transform: translateY(0);
+        }
+
+        .followup-bar .bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .followup-bar .selection-count {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .followup-bar .clear-btn {
+            font-size: 13px;
+            color: #999;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .followup-bar .clear-btn:hover {
+            color: #666;
+        }
+
+        .followup-bar .preview-btn {
+            padding: 10px 20px;
+            background: #2ca02c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .followup-bar .preview-btn:hover {
+            background: #248a24;
+        }
+
+        /* Follow-up preview panel */
+        .followup-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 24px;
+            margin-bottom: 80px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .followup-panel.visible {
+            display: block;
+        }
+
+        .followup-panel-header {
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .followup-panel-header h2 {
+            font-size: 16px;
+            color: #333;
+            margin: 0;
+        }
+
+        .followup-panel-header .close-panel-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .followup-panel-header .close-panel-btn:hover {
+            color: #333;
+        }
+
+        .channel-message-block {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .channel-message-block:last-child {
+            border-bottom: none;
+        }
+
+        .channel-message-block h3 {
+            font-size: 14px;
+            color: #4a90e2;
+            margin-bottom: 10px;
+        }
+
+        .channel-message-block textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            color: #333;
+        }
+
+        .channel-message-block textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .channel-send-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .channel-send-btn {
+            padding: 8px 16px;
+            background: #2ca02c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .channel-send-btn:hover:not(:disabled) {
+            background: #248a24;
+        }
+
+        .channel-send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .channel-send-btn.sent {
+            background: #4a90e2;
+        }
+
+        .send-status {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .send-status.success {
+            color: #2ca02c;
+        }
+
+        .send-status.error {
+            color: #d62728;
+        }
+
+        .send-all-row {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .send-all-btn {
+            padding: 10px 24px;
+            background: #2ca02c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .send-all-btn:hover:not(:disabled) {
+            background: #248a24;
+        }
+
+        .send-all-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* AI Enrichment styles */
+        .enrich-btn {
+            padding: 12px 24px;
+            background: #7c3aed;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .enrich-btn:hover:not(:disabled) {
+            background: #6d28d9;
+        }
+
+        .enrich-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .enrich-progress {
+            font-size: 12px;
+            color: #666;
+            min-height: 16px;
+        }
+
+        .enrich-progress.active {
+            color: #7c3aed;
+        }
+
+        .ai-status-cell {
+            max-width: 300px;
+            min-width: 180px;
+        }
+
+        .ai-summary-text {
+            font-size: 12px;
+            color: #444;
+            line-height: 1.5;
+        }
+
+        .ai-summary-list {
+            font-size: 12px;
+            color: #444;
+            line-height: 1.5;
+            margin: 0;
+            padding-left: 16px;
+            list-style: disc;
+        }
+
+        .ai-summary-list li {
+            margin-bottom: 3px;
+        }
+
+        .ai-enriched-at {
+            font-size: 10px;
+            color: #aaa;
+            margin-top: 3px;
+        }
+
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
     </style>
 </head>
 <body>
@@ -322,9 +749,15 @@
                 <h1>Weekly Slack Pipeline Reconciliation</h1>
                 <div class="subtitle" id="generated-at">Loading...</div>
             </div>
-            <div class="generate-section">
-                <button class="generate-btn" id="generate-btn" onclick="generateData()">Generate Data</button>
-                <div class="progress-indicator" id="progress-indicator"></div>
+            <div class="header-buttons">
+                <div class="button-group">
+                    <button class="generate-btn" id="generate-btn" onclick="generateData()">Generate Data</button>
+                    <div class="progress-indicator" id="progress-indicator"></div>
+                </div>
+                <div class="button-group">
+                    <button class="enrich-btn" id="enrich-btn" onclick="startEnrichment()">Enrich with AI</button>
+                    <div class="enrich-progress" id="enrich-progress"></div>
+                </div>
             </div>
         </header>
 
@@ -354,12 +787,33 @@
         <div class="filters">
             <div class="filter-group">
                 <label>Status</label>
-                <select id="filter-status">
-                    <option value="">All Statuses</option>
-                    <option value="CLOSED">CLOSED</option>
-                    <option value="IN PROCESS — explicit">IN PROCESS — explicit</option>
-                    <option value="IN PROCESS — unclear">IN PROCESS — unclear</option>
-                </select>
+                <div class="multi-select" id="status-multi-select">
+                    <div class="multi-select-toggle" tabindex="0">
+                        <div class="selected-tags">
+                            <span class="selected-placeholder">All Statuses</span>
+                        </div>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="multi-select-dropdown">
+                        <div class="multi-select-option" data-value="">
+                            <input type="checkbox" id="status-all" checked>
+                            <label for="status-all">All Statuses</label>
+                        </div>
+                        <div class="multi-select-divider"></div>
+                        <div class="multi-select-option" data-value="CLOSED">
+                            <input type="checkbox" id="status-closed">
+                            <label for="status-closed">CLOSED</label>
+                        </div>
+                        <div class="multi-select-option" data-value="IN PROCESS — explicit">
+                            <input type="checkbox" id="status-explicit">
+                            <label for="status-explicit">IN PROCESS — explicit</label>
+                        </div>
+                        <div class="multi-select-option" data-value="IN PROCESS — unclear">
+                            <input type="checkbox" id="status-unclear">
+                            <label for="status-unclear">IN PROCESS — unclear</label>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="filter-group">
                 <label>Channel</label>
@@ -380,18 +834,42 @@
             <table id="data-table" style="display: none;">
                 <thead>
                     <tr>
+                        <th class="col-select"></th>
                         <th class="sortable" data-sort="candidate_name">Candidate</th>
                         <th class="sortable" data-sort="channel_name">Channel</th>
                         <th class="sortable" data-sort="status">Status</th>
+                        <th>AI Summary</th>
                         <th class="sortable" data-sort="days_since_submission">Days Since Submission</th>
                         <th>LinkedIn</th>
-                        <th>Status Reason</th>
+                        <th>Slack</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
                 </tbody>
             </table>
         </div>
+
+        <!-- Follow-up preview panel -->
+        <div class="followup-panel" id="followup-panel">
+            <div class="followup-panel-header">
+                <h2>Follow-up Messages Preview</h2>
+                <button class="close-panel-btn" onclick="closeFollowupPanel()">&times;</button>
+            </div>
+            <div id="followup-messages"></div>
+            <div class="send-all-row">
+                <span class="send-status" id="send-all-status"></span>
+                <button class="send-all-btn" id="send-all-btn" onclick="sendAllFollowups()">Send All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sticky bottom bar -->
+    <div class="followup-bar" id="followup-bar">
+        <div class="bar-left">
+            <span class="selection-count" id="selection-count">0 candidates selected</span>
+            <button class="clear-btn" onclick="clearSelections()">Clear</button>
+        </div>
+        <button class="preview-btn" onclick="showFollowupPreview()">Preview Follow-up</button>
     </div>
 
     <script>
@@ -399,6 +877,11 @@
         let filteredData = [];
         let sortColumn = 'candidate_name';
         let sortDirection = 'asc';
+        let selectedSet = new Set(); // tracks selected submission keys
+
+        function submissionKey(s) {
+            return `${s.channel_id}::${s.candidate_name}::${s.submitted_at}`;
+        }
 
         // Load JSON data
         async function loadData() {
@@ -466,13 +949,26 @@
             document.getElementById('stat-followup').textContent = followup;
         }
 
+        function getSelectedStatuses() {
+            const allCheckbox = document.getElementById('status-all');
+            if (allCheckbox && allCheckbox.checked) return []; // empty = no filter
+            const checkboxes = document.querySelectorAll('#status-multi-select .multi-select-option[data-value]:not([data-value=""]) input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selected.push(cb.closest('.multi-select-option').dataset.value);
+                }
+            });
+            return selected;
+        }
+
         function applyFilters() {
-            const statusFilter = document.getElementById('filter-status').value;
+            const selectedStatuses = getSelectedStatuses();
             const channelFilter = document.getElementById('filter-channel').value;
             const searchTerm = document.getElementById('search').value.toLowerCase();
 
             filteredData = allData.filter(submission => {
-                if (statusFilter && submission.status !== statusFilter) return false;
+                if (selectedStatuses.length > 0 && !selectedStatuses.includes(submission.status)) return false;
                 if (channelFilter && submission.channel_name !== channelFilter) return false;
                 if (searchTerm && !submission.candidate_name.toLowerCase().includes(searchTerm)) return false;
                 return true;
@@ -516,6 +1012,9 @@
 
             filteredData.forEach(submission => {
                 const row = document.createElement('tr');
+                const key = submissionKey(submission);
+                const isActive = submission.status !== 'CLOSED';
+                const isChecked = selectedSet.has(key);
                 
                 const statusClass = submission.status === 'CLOSED' ? 'status-closed' :
                                    submission.status === 'IN PROCESS — explicit' ? 'status-explicit' :
@@ -524,16 +1023,22 @@
                 const statusDisplay = submission.status === 'IN PROCESS — explicit' ? 
                     'IN PROCESS — explicit' : submission.status;
 
+                const aiCell = renderAiStatusCell(submission);
+
                 row.innerHTML = `
+                    <td class="col-select">
+                        ${isActive ? `<input type="checkbox" data-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} onchange="toggleSelection(this)">` : ''}
+                    </td>
                     <td><strong>${escapeHtml(submission.candidate_name)}</strong></td>
                     <td>${escapeHtml(submission.channel_name)}</td>
                     <td>
                         <span class="status-badge ${statusClass}">${statusDisplay}</span>
                         ${submission.needs_followup ? '<span class="status-badge followup-badge">Follow-up</span>' : ''}
                     </td>
+                    <td class="ai-status-cell">${aiCell}</td>
                     <td><span class="days-old">${submission.days_since_submission} days</span></td>
                     <td><a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a></td>
-                    <td>${submission.status_reason ? escapeHtml(submission.status_reason) : '—'}</td>
+                    <td>${submission.slack_url ? `<a href="${escapeHtml(submission.slack_url)}" target="_blank">View Thread</a>` : '—'}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -553,8 +1058,86 @@
             return div.innerHTML;
         }
 
+        // Multi-select status filter logic
+        (function initMultiSelect() {
+            const container = document.getElementById('status-multi-select');
+            const toggle = container.querySelector('.multi-select-toggle');
+            const allCheckbox = document.getElementById('status-all');
+            const statusCheckboxes = container.querySelectorAll('.multi-select-option[data-value]:not([data-value=""]) input[type="checkbox"]');
+
+            // Toggle dropdown open/close
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                container.classList.toggle('open');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove('open');
+                }
+            });
+
+            // Close on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') container.classList.remove('open');
+            });
+
+            // "All Statuses" checkbox logic
+            allCheckbox.addEventListener('change', () => {
+                if (allCheckbox.checked) {
+                    statusCheckboxes.forEach(cb => cb.checked = false);
+                }
+                updateToggleDisplay();
+                applyFilters();
+            });
+
+            // Individual status checkbox logic
+            statusCheckboxes.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const anyChecked = Array.from(statusCheckboxes).some(c => c.checked);
+                    allCheckbox.checked = !anyChecked;
+                    // If all individual statuses are unchecked, revert to "All"
+                    if (!anyChecked) {
+                        allCheckbox.checked = true;
+                    }
+                    updateToggleDisplay();
+                    applyFilters();
+                });
+            });
+
+            // Prevent label clicks from toggling dropdown
+            container.querySelectorAll('.multi-select-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = opt.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                    e.stopPropagation();
+                });
+            });
+
+            function updateToggleDisplay() {
+                const tagsContainer = container.querySelector('.selected-tags');
+                const selected = getSelectedStatuses();
+
+                if (selected.length === 0) {
+                    tagsContainer.innerHTML = '<span class="selected-placeholder">All Statuses</span>';
+                } else {
+                    const shortLabels = {
+                        'CLOSED': 'Closed',
+                        'IN PROCESS — explicit': 'Explicit',
+                        'IN PROCESS — unclear': 'Unclear'
+                    };
+                    tagsContainer.innerHTML = selected
+                        .map(s => `<span class="selected-tag">${shortLabels[s] || s}</span>`)
+                        .join('');
+                }
+            }
+        })();
+
         // Event listeners
-        document.getElementById('filter-status').addEventListener('change', applyFilters);
         document.getElementById('filter-channel').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
@@ -648,6 +1231,317 @@
                 }
             } catch (error) {
                 console.error('Error polling status:', error);
+            }
+        }
+
+        // --- Follow-up selection & send logic ---
+
+        function toggleSelection(checkbox) {
+            const key = checkbox.dataset.key;
+            if (checkbox.checked) {
+                selectedSet.add(key);
+            } else {
+                selectedSet.delete(key);
+            }
+            updateFollowupBar();
+        }
+
+        function updateFollowupBar() {
+            const bar = document.getElementById('followup-bar');
+            const count = selectedSet.size;
+            document.getElementById('selection-count').textContent =
+                `${count} candidate${count !== 1 ? 's' : ''} selected`;
+            bar.classList.toggle('visible', count > 0);
+
+            // Hide preview panel if nothing selected
+            if (count === 0) {
+                closeFollowupPanel();
+            }
+        }
+
+        function clearSelections() {
+            selectedSet.clear();
+            document.querySelectorAll('#table-body input[type="checkbox"]').forEach(cb => cb.checked = false);
+            updateFollowupBar();
+        }
+
+        function getSelectedSubmissions() {
+            return allData.filter(s => selectedSet.has(submissionKey(s)));
+        }
+
+        function groupByChannel(submissions) {
+            const grouped = {};
+            submissions.forEach(s => {
+                if (!grouped[s.channel_name]) {
+                    grouped[s.channel_name] = { channel_id: s.channel_id, candidates: [] };
+                }
+                grouped[s.channel_name].candidates.push(s);
+            });
+            return grouped;
+        }
+
+        function buildFollowupMessage(candidates) {
+            const lines = ['Quick status check on candidates currently in process:'];
+            candidates
+                .sort((a, b) => a.candidate_name.localeCompare(b.candidate_name))
+                .forEach(c => {
+                    lines.push(`– ${c.candidate_name} (${c.days_since_submission} days)`);
+                });
+            lines.push('');
+            lines.push('Any updates on where things stand with each? Appreciate it!');
+            return lines.join('\n');
+        }
+
+        function showFollowupPreview() {
+            const selected = getSelectedSubmissions();
+            if (selected.length === 0) return;
+
+            const grouped = groupByChannel(selected);
+            const container = document.getElementById('followup-messages');
+            container.innerHTML = '';
+
+            Object.keys(grouped).sort().forEach(channelName => {
+                const { channel_id, candidates } = grouped[channelName];
+                const message = buildFollowupMessage(candidates);
+
+                const block = document.createElement('div');
+                block.className = 'channel-message-block';
+                block.innerHTML = `
+                    <h3>#${escapeHtml(channelName)} (${candidates.length} candidate${candidates.length !== 1 ? 's' : ''})</h3>
+                    <textarea id="msg-${escapeHtml(channel_id)}" data-channel-id="${escapeHtml(channel_id)}" data-channel-name="${escapeHtml(channelName)}">${escapeHtml(message)}</textarea>
+                    <div class="channel-send-row">
+                        <span class="send-status" id="status-${escapeHtml(channel_id)}"></span>
+                        <button class="channel-send-btn" id="btn-${escapeHtml(channel_id)}" onclick="sendFollowup('${escapeHtml(channel_id)}')">Send to #${escapeHtml(channelName)}</button>
+                    </div>
+                `;
+                container.appendChild(block);
+            });
+
+            // Reset send-all state
+            document.getElementById('send-all-status').textContent = '';
+            document.getElementById('send-all-btn').disabled = false;
+            document.getElementById('send-all-btn').textContent = 'Send All';
+
+            document.getElementById('followup-panel').classList.add('visible');
+            document.getElementById('followup-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeFollowupPanel() {
+            document.getElementById('followup-panel').classList.remove('visible');
+        }
+
+        function clearChannelFromSelection(channelId) {
+            // Remove this channel's candidates from selectedSet and uncheck in table
+            const toRemove = allData.filter(s => s.channel_id === channelId && selectedSet.has(submissionKey(s)));
+            toRemove.forEach(s => selectedSet.delete(submissionKey(s)));
+
+            document.querySelectorAll('#table-body input[type="checkbox"]').forEach(cb => {
+                if (!selectedSet.has(cb.dataset.key)) {
+                    cb.checked = false;
+                }
+            });
+
+            // Remove the channel block from the preview panel
+            const block = document.getElementById(`msg-${channelId}`);
+            if (block) {
+                block.closest('.channel-message-block').remove();
+            }
+
+            // If no blocks remain, close the panel
+            const remaining = document.querySelectorAll('#followup-messages .channel-message-block');
+            if (remaining.length === 0) {
+                closeFollowupPanel();
+            }
+
+            updateFollowupBar();
+        }
+
+        async function sendFollowup(channelId) {
+            const textarea = document.getElementById(`msg-${channelId}`);
+            const btn = document.getElementById(`btn-${channelId}`);
+            const statusEl = document.getElementById(`status-${channelId}`);
+            const message = textarea.value.trim();
+
+            if (!message) {
+                statusEl.textContent = 'Message is empty';
+                statusEl.className = 'send-status error';
+                return false;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            statusEl.textContent = '';
+
+            try {
+                const response = await fetch('/api/send-followup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel_id: channelId, message }),
+                });
+                const result = await response.json();
+
+                if (result.ok) {
+                    // Clear this channel from the panel and selections after a brief flash
+                    btn.textContent = 'Sent!';
+                    btn.classList.add('sent');
+                    statusEl.textContent = '✓ Message sent';
+                    statusEl.className = 'send-status success';
+
+                    setTimeout(() => clearChannelFromSelection(channelId), 600);
+                    return true;
+                } else {
+                    btn.textContent = 'Retry';
+                    btn.disabled = false;
+                    statusEl.textContent = `Error: ${result.error}`;
+                    statusEl.className = 'send-status error';
+                    return false;
+                }
+            } catch (err) {
+                btn.textContent = 'Retry';
+                btn.disabled = false;
+                statusEl.textContent = `Error: ${err.message}`;
+                statusEl.className = 'send-status error';
+                return false;
+            }
+        }
+
+        async function sendAllFollowups() {
+            const sendAllBtn = document.getElementById('send-all-btn');
+            const sendAllStatus = document.getElementById('send-all-status');
+            const textareas = [...document.querySelectorAll('#followup-messages textarea')];
+
+            sendAllBtn.disabled = true;
+            sendAllBtn.textContent = 'Sending...';
+            sendAllStatus.textContent = '';
+
+            let successCount = 0;
+            let totalCount = textareas.length;
+
+            for (const textarea of textareas) {
+                const channelId = textarea.dataset.channelId;
+                // textarea may have been removed by a previous send's cleanup
+                if (!document.getElementById(`btn-${channelId}`)) {
+                    successCount++;
+                    continue;
+                }
+                const ok = await sendFollowup(channelId);
+                if (ok) successCount++;
+            }
+
+            if (successCount === totalCount) {
+                sendAllStatus.textContent = `✓ ${successCount} message${successCount !== 1 ? 's' : ''} sent`;
+                sendAllStatus.className = 'send-status success';
+                // Panel will auto-close as channels are cleared
+            } else {
+                sendAllBtn.textContent = 'Retry Failed';
+                sendAllBtn.disabled = false;
+                sendAllStatus.textContent = `${successCount}/${totalCount} sent`;
+                sendAllStatus.className = 'send-status error';
+            }
+        }
+
+        // --- AI Enrichment ---
+
+        function renderAiStatusCell(submission) {
+            if (!submission.ai_summary) {
+                return '<span style="color: #ccc; font-size: 12px;">—</span>';
+            }
+
+            // Split on bullet points and render as a list
+            const raw = submission.ai_summary;
+            const bullets = raw.split(/\n/).filter(l => l.trim());
+            let html;
+            if (bullets.length > 1 || raw.includes('•')) {
+                const items = bullets
+                    .map(b => b.replace(/^[\s•\-]+/, '').trim())
+                    .filter(b => b)
+                    .map(b => `<li>${escapeHtml(b)}</li>`)
+                    .join('');
+                html = `<ul class="ai-summary-list">${items}</ul>`;
+            } else {
+                html = `<div class="ai-summary-text">${escapeHtml(raw)}</div>`;
+            }
+
+            if (submission.ai_enriched_at) {
+                const d = new Date(submission.ai_enriched_at);
+                html += `<div class="ai-enriched-at">enriched ${d.toLocaleDateString()}</div>`;
+            }
+            return html;
+        }
+
+        let enrichPollInterval = null;
+
+        async function startEnrichment() {
+            const btn = document.getElementById('enrich-btn');
+            const indicator = document.getElementById('enrich-progress');
+
+            btn.disabled = true;
+            indicator.innerHTML = '<span class="progress-spinner"></span>Starting enrichment...';
+            indicator.classList.add('active');
+
+            try {
+                const response = await fetch('/api/enrich', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Failed to start enrichment');
+                }
+
+                enrichPollInterval = setInterval(pollEnrichStatus, 1500);
+                pollEnrichStatus();
+            } catch (error) {
+                indicator.textContent = `Error: ${error.message}`;
+                indicator.classList.remove('active');
+                btn.disabled = false;
+            }
+        }
+
+        async function pollEnrichStatus() {
+            try {
+                const response = await fetch('/api/enrich/status');
+                const status = await response.json();
+                const indicator = document.getElementById('enrich-progress');
+                const btn = document.getElementById('enrich-btn');
+
+                if (status.running) {
+                    const phaseName = status.phase === 'gathering' ? 'Gathering context' :
+                                     status.phase === 'analyzing' ? 'Analyzing with Claude' :
+                                     status.phase;
+                    const progress = status.total > 0 ? ` (${status.current}/${status.total})` : '';
+                    const detail = status.detail && status.detail !== 'done' ? `: ${status.detail}` : '';
+                    indicator.innerHTML = `<span class="progress-spinner"></span>${phaseName}${progress}${detail}`;
+                    indicator.classList.add('active');
+                } else if (status.completed) {
+                    indicator.textContent = `✓ Enrichment complete!`;
+                    indicator.classList.remove('active');
+                    btn.disabled = false;
+                    clearInterval(enrichPollInterval);
+                    enrichPollInterval = null;
+
+                    // Reload data to show AI results
+                    setTimeout(() => loadData(), 500);
+                } else if (status.error) {
+                    indicator.innerHTML = `✗ ${escapeHtml(status.error)}`;
+                    indicator.style.color = '#dc2626';
+                    indicator.classList.remove('active');
+                    btn.disabled = false;
+                    clearInterval(enrichPollInterval);
+                    enrichPollInterval = null;
+                } else {
+                    btn.disabled = false;
+                    indicator.textContent = '';
+                    indicator.classList.remove('active');
+                    if (enrichPollInterval) {
+                        clearInterval(enrichPollInterval);
+                        enrichPollInterval = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling enrich status:', error);
             }
         }
 

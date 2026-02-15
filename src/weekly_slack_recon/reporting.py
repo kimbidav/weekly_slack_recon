@@ -170,7 +170,7 @@ def write_json(submissions: List[CandidateSubmission], path: str, generated_at: 
     }
     
     for s in submissions:
-        data["submissions"].append({
+        entry = {
             "candidate_name": s.candidate_name,
             "linkedin_url": s.linkedin_url,
             "channel_name": s.channel_name,
@@ -180,7 +180,12 @@ def write_json(submissions: List[CandidateSubmission], path: str, generated_at: 
             "status_reason": s.status_reason,
             "days_since_submission": s.days_since_submission,
             "needs_followup": s.needs_followup,
-        })
+            "slack_url": s.slack_url,
+            # AI enrichment fields (populated by enrichment step)
+            "ai_summary": getattr(s, 'ai_summary', None),
+            "ai_enriched_at": getattr(s, 'ai_enriched_at', None),
+        }
+        data["submissions"].append(entry)
     
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)

@@ -79,10 +79,16 @@ def nudge_check() -> None:
         action="store_true",
         help="Don't send nudges, just show what would be sent",
     )
+    parser.add_argument(
+        "--dm-only",
+        action="store_true",
+        default=None,
+        help="Send DM summary only, don't post thread replies in channels",
+    )
     args = parser.parse_args()
     
     from .realtime_monitor import run_single_check
-    run_single_check(dry_run=args.dry_run)
+    run_single_check(dry_run=args.dry_run, dm_only=args.dm_only or None)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,11 @@ class Config:
     slack_app_token: Optional[str] = None  # App-level token (xapp-...) for Socket Mode
     dk_user_id: Optional[str] = None  # David Kimball's Slack user ID for tagging
     nudge_tracker_path: str = ".nudge_tracker.json"  # Track nudged threads
+    nudge_dm_only: bool = False  # If True, send DM summary only (no thread replies)
+    # LLM enrichment settings
+    anthropic_api_key: Optional[str] = None  # Anthropic API key for Claude
+    enrichment_model: str = "claude-sonnet-4-20250514"  # Claude model to use
+    enrichment_max_tokens: int = 500  # Max tokens per candidate summary
 
     @property
     def lookback_timedelta(self) -> timedelta:
@@ -72,6 +77,12 @@ def load_config() -> Config:
     slack_app_token = os.getenv("SLACK_APP_TOKEN")  # xapp-... for Socket Mode
     dk_user_id = os.getenv("DK_USER_ID")  # Can be set directly or looked up from email
     nudge_tracker_path = os.getenv("NUDGE_TRACKER_PATH", ".nudge_tracker.json")
+    nudge_dm_only = os.getenv("NUDGE_DM_ONLY", "false").lower() in {"1", "true", "yes", "y"}
+
+    # LLM enrichment settings
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    enrichment_model = os.getenv("ENRICHMENT_MODEL", "claude-sonnet-4-20250514")
+    enrichment_max_tokens = _int_env("ENRICHMENT_MAX_TOKENS", 500)
 
     return Config(
         slack_bot_token=slack_bot_token,
@@ -85,4 +96,8 @@ def load_config() -> Config:
         slack_app_token=slack_app_token,
         dk_user_id=dk_user_id,
         nudge_tracker_path=nudge_tracker_path,
+        nudge_dm_only=nudge_dm_only,
+        anthropic_api_key=anthropic_api_key,
+        enrichment_model=enrichment_model,
+        enrichment_max_tokens=enrichment_max_tokens,
     )
