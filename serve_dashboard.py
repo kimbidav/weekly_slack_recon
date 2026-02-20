@@ -9,6 +9,7 @@ import webbrowser
 import os
 import sys
 import json
+import subprocess
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
@@ -584,6 +585,61 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
 
+ASHBY_AUTOMATION_DIR = Path.home() / "Desktop" / "Ashby automation"
+ASHBY_EXTRACT_TIMEOUT = 300  # seconds (5 min) — extraction across all orgs can be slow
+
+
+def _run_ashby_extraction(ashby_json_path: str) -> bool:
+    """
+    Run the Ashby Automation Node.js extraction tool to generate a fresh export.
+    Uses the saved session in .ashby-session.json (no browser required).
+
+    Returns True if extraction succeeded, False if it failed (e.g. session expired).
+    On failure the caller falls back to the last-good JSON file in the output directory.
+    """
+    if not ASHBY_AUTOMATION_DIR.exists():
+        print(f"[ASHBY] Automation directory not found: {ASHBY_AUTOMATION_DIR}")
+        return False
+
+    output_dir = Path(ashby_json_path) if Path(ashby_json_path).is_dir() else Path(ashby_json_path).parent
+    today = datetime.now().strftime("%Y-%m-%d")
+    out_json = output_dir / f"ashby_pipeline_{today}.json"
+    out_csv  = output_dir / f"ashby_pipeline_{today}.csv"
+
+    cmd = [
+        "node", "--loader", "ts-node/esm",
+        "src/cli.ts", "extract",
+        "--json", str(out_json),
+        "--csv",  str(out_csv),
+    ]
+
+    update_progress("Refreshing Ashby data...")
+    print(f"[ASHBY] Running extraction: {' '.join(cmd)}")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(ASHBY_AUTOMATION_DIR),
+            capture_output=True,
+            text=True,
+            timeout=ASHBY_EXTRACT_TIMEOUT,
+        )
+        if result.returncode == 0:
+            print(f"[ASHBY] Extraction succeeded → {out_json}")
+            return True
+        else:
+            print(f"[ASHBY] Extraction failed (exit {result.returncode})")
+            if result.stderr:
+                print(f"[ASHBY] stderr: {result.stderr[-500:]}")  # last 500 chars
+            return False
+    except subprocess.TimeoutExpired:
+        print(f"[ASHBY] Extraction timed out after {ASHBY_EXTRACT_TIMEOUT}s")
+        return False
+    except Exception as e:
+        print(f"[ASHBY] Extraction error: {e}")
+        return False
+
+
 def update_progress(message: str):
     """Update generation progress"""
     generation_status["progress"] = message
@@ -639,8 +695,11 @@ def run_generation(settings: dict = None):
             json_path = cfg.output_markdown_path.replace('.md', '.json')
             write_json(submissions, json_path, generated_at=now)
 
-        # Auto-import Ashby after Slack sync so candidates aren't wiped
+        # Auto-refresh Ashby data then import
         if cfg.ashby_json_path:
+            # Step 1: Re-run the Node.js extraction to get fresh data
+            _run_ashby_extraction(cfg.ashby_json_path)
+            # Step 2: Import whatever the latest file is (fresh or last-good fallback)
             try:
                 update_progress("Importing Ashby candidates...")
                 ashby_file = find_latest_ashby_export(cfg.ashby_json_path)
@@ -655,11 +714,11 @@ def run_generation(settings: dict = None):
                 data["ashby_candidate_count"] = len(ashby_candidates)
                 with open(resolved_json, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
-                print(f"[ASHBY] Auto-imported {len(ashby_candidates)} candidates from {ashby_file}")
+                print(f"[ASHBY] Imported {len(ashby_candidates)} candidates from {ashby_file}")
             except FileNotFoundError:
-                print("[ASHBY] No export file found — skipping auto-import")
+                print("[ASHBY] No export file found — skipping import")
             except Exception as e:
-                print(f"[ASHBY] Auto-import failed: {e}")
+                print(f"[ASHBY] Import failed: {e}")
 
         update_progress("Complete!")
         generation_status["completed"] = True
