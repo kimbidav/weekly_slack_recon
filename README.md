@@ -9,7 +9,7 @@ A single-pane-of-glass tool for tracking all active candidates — across both *
 | Source | What it tracks |
 |--------|---------------|
 | **Slack** | DK's top-level messages in `candidatelabs-*` channels that contain a LinkedIn URL. Status inferred from emoji reactions and thread keywords. |
-| **Ashby** | Candidates credited to DK in the Ashby ATS export. Pulled from a separate Ashby Automation tool (Node.js, lives at `~/Desktop/Ashby automation/`). |
+| **Ashby** | Candidates credited to DK in the Ashby ATS. Extracted via the Ashby Automation tool (`~/Desktop/Ashby automation/`) and merged into the dashboard automatically. |
 
 The dashboard merges both sources and flags candidates that appear in both (LinkedIn URL cross-match).
 
@@ -17,10 +17,12 @@ The dashboard merges both sources and flags candidates that appear in both (Link
 
 ## Daily workflow
 
-1. **Open the dashboard** — double-click `Slack Reconciliation.app` on the Desktop.
-2. **Sync Slack** — click the "Sync Slack" button to scan all `candidatelabs-*` channels for recent submissions (takes ~1–2 min due to rate limits).
-3. **Import Ashby** — click "Import Ashby" to pull in the latest Ashby export from `~/Desktop/Ashby automation/output/` (auto-picks the newest `.json` file).
-4. **Review the dashboard** — filter by status, channel/company, or source. Click stage links for Ashby candidates to jump straight to their Ashby page.
+1. **Open the dashboard** — double-click `Slack Reconciliation.app` on the Desktop. The last synced data loads immediately. The header shows how fresh each source is: `Slack synced 2h ago · Ashby imported 45m ago`.
+2. **When you want fresh data** — click **Sync Slack**. This scans all `candidatelabs-*` channels (~1–2 min due to rate limits) and automatically runs a fresh Ashby extraction at the end.
+3. **If Ashby session expired** — a yellow banner appears after the sync. Paste a fresh `sessionToken` cookie from DevTools and click **Save & Sync**. The server saves it, re-extracts, and re-imports automatically.
+4. **Review** — filter by status, channel/company, or source. Click stage links for Ashby candidates to jump straight to their Ashby page.
+
+> **Tip:** You don't need to sync Slack every time you open the dashboard. The header freshness timestamps tell you whether the data is recent enough.
 
 ---
 
@@ -35,12 +37,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Also requires **Node.js** and the Ashby Automation tool at `~/Desktop/Ashby automation/` (separate project — see its own README for setup).
+
 ### 2. `.env` file
 
 Create `.env` in the project root:
 
 ```env
-# Slack token (User OAuth Token recommended — no need to add bot to channels)
+# Slack token (User OAuth Token — no need to add a bot to channels)
 SLACK_BOT_TOKEN=xoxp-...
 
 # DK's email (used to look up Slack user ID)
@@ -72,22 +76,34 @@ Copy the `xoxp-...` User OAuth Token into `.env`.
 
 ## Ashby integration
 
-The Ashby data comes from a separate **Ashby Automation** tool (`~/Desktop/Ashby automation/`) that extracts the pipeline via Ashby's internal GraphQL API using saved session cookies. Run that tool to generate a fresh JSON export, then click "Import Ashby" in the dashboard.
+Ashby data is extracted via the **Ashby Automation** tool at `~/Desktop/Ashby automation/` — a separate Node.js project that hits Ashby's internal GraphQL API using a saved session cookie.
+
+**How it works end-to-end:**
+1. Clicking **Sync Slack** automatically runs `node src/cli.ts extract` after the Slack scan completes, writing a fresh JSON to the output folder.
+2. The server imports that JSON and merges it into the main data file.
+3. If extraction fails (session expired), the dashboard shows a yellow re-auth banner.
+4. Paste a fresh `sessionToken` cookie → server runs `node src/cli.ts auth-cookie --cookie <value>`, re-extracts, re-imports.
 
 **What gets imported:**
 - Only candidates where `creditedTo` is DK (`David`, `David Kimball`, `David CL`, `DK`)
-- The `company_name` field shows the client org (`orgName` from Ashby — e.g., "Agave", "Canals")
-- The Stage / Thread column shows the pipeline stage and links to `app.ashbyhq.com/candidates/{id}`
+- `company_name` shows the client org (`orgName` from Ashby — e.g., "Agave", "Canals")
+- The Stage / Thread column links to `app.ashbyhq.com/candidates/{id}`
 
-**To regenerate the Ashby export:**
-```bash
-cd ~/Desktop/Ashby\ automation
-npm run extract   # or whatever the run command is — see that project's README
-```
+**Getting a fresh Ashby session cookie (when the banner appears):**
+1. Open `app.ashbyhq.com` in Chrome and sign in
+2. Open DevTools → Application → Cookies → `app.ashbyhq.com`
+3. Copy the value of the `sessionToken` cookie
+4. Paste it into the banner and click **Save & Sync**
+
+**Manual Ashby import (fallback):**
+The "Import Ashby" button in the header reads whatever `.json` is already in the output folder — it does not fetch new data. Use it only if you want to re-import without triggering a full Slack sync. The import progress line shows the file age so you know if it's stale.
 
 ---
 
 ## Dashboard features
+
+### Data freshness
+The header subtitle always shows: `Slack synced Xh ago · Ashby imported Yh ago`. Hover any age label for the exact timestamp.
 
 ### Filters & search
 - **Status filter**: CLOSED / IN PROCESS — explicit / IN PROCESS — unclear
@@ -112,7 +128,6 @@ Click "View Thread" to open a side panel with the full Slack conversation. Reply
 ### AI enrichment (Slack only)
 Click "Enrich with AI" to generate Claude-powered bullet-point summaries for all active Slack candidates. Summaries are persisted in the JSON file.
 
-**Model config:**
 ```env
 ENRICHMENT_MODEL=claude-sonnet-4-20250514
 ENRICHMENT_MAX_TOKENS=500
@@ -168,16 +183,18 @@ weekly_slack_recon/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/status` | Generation job status |
-| GET | `/api/generate` | Trigger Slack sync |
-| GET | `/api/enrich/status` | Enrichment job status |
+| GET | `/api/status` | Slack sync job status (includes `ashby_auth_required` flag) |
+| GET | `/api/generate` | Trigger Slack sync + Ashby extraction |
+| GET | `/api/enrich/status` | AI enrichment job status |
 | POST | `/api/enrich` | Start AI enrichment |
+| POST | `/api/enrich/clear` | Clear all AI summaries |
 | GET | `/api/thread` | Fetch Slack thread messages |
-| GET | `/api/channel-members` | Get channel members for @mention |
+| GET | `/api/channel-members` | Get channel members for @mention autocomplete |
 | POST | `/api/send-followup` | Post message to a Slack channel |
 | POST | `/api/send-thread-reply` | Reply to a Slack thread |
-| GET | `/api/ashby/status` | Check Ashby export file status |
-| POST | `/api/ashby/import` | Import & merge Ashby candidates |
+| GET | `/api/ashby/status` | Ashby export file info (path, modified time, size) |
+| POST | `/api/ashby/import` | Import latest Ashby JSON into the data file |
+| POST | `/api/ashby/set-cookie` | Save Ashby session cookie, re-extract, re-import |
 
 ---
 
