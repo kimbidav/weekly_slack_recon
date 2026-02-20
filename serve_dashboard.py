@@ -632,13 +632,35 @@ def run_generation(settings: dict = None):
             return
         
         update_progress(f"Found {len(submissions)} candidate submissions. Generating report...")
-        
+
         # Write markdown and JSON
         if cfg.output_markdown_path:
             write_markdown(submissions, cfg.output_markdown_path, generated_at=now)
             json_path = cfg.output_markdown_path.replace('.md', '.json')
             write_json(submissions, json_path, generated_at=now)
-        
+
+        # Auto-import Ashby after Slack sync so candidates aren't wiped
+        if cfg.ashby_json_path:
+            try:
+                update_progress("Importing Ashby candidates...")
+                ashby_file = find_latest_ashby_export(cfg.ashby_json_path)
+                ashby_candidates = load_ashby_export(ashby_file)
+                resolved_json = Path(cfg.output_markdown_path.replace('.md', '.json'))
+                with open(resolved_json, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                data["submissions"] = merge_ashby_into_submissions(
+                    data.get("submissions", []), ashby_candidates
+                )
+                data["ashby_imported_at"] = datetime.now(tz=timezone.utc).isoformat()
+                data["ashby_candidate_count"] = len(ashby_candidates)
+                with open(resolved_json, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                print(f"[ASHBY] Auto-imported {len(ashby_candidates)} candidates from {ashby_file}")
+            except FileNotFoundError:
+                print("[ASHBY] No export file found — skipping auto-import")
+            except Exception as e:
+                print(f"[ASHBY] Auto-import failed: {e}")
+
         update_progress("Complete!")
         generation_status["completed"] = True
         generation_status["running"] = False

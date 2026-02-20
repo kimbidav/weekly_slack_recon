@@ -1818,17 +1818,18 @@
         async function generateData() {
             const btn = document.getElementById('generate-btn');
             const indicator = document.getElementById('progress-indicator');
-            
+
             btn.disabled = true;
-            indicator.innerHTML = '<span class="progress-spinner"></span>Starting generation...';
+            indicator.innerHTML = '<span class="progress-spinner"></span>Syncing…';
             indicator.classList.add('active');
 
             try {
                 const response = await fetch('/api/generate');
-                if (!response.ok) {
+                // 409 = already running (e.g. page refreshed mid-sync) — just start polling
+                if (!response.ok && response.status !== 409) {
                     throw new Error('Failed to start generation');
                 }
-                
+
                 // Start polling for status
                 statusPollInterval = setInterval(pollStatus, 1000);
                 pollStatus(); // Poll immediately
@@ -1851,16 +1852,14 @@
                     indicator.innerHTML = `<span class="progress-spinner"></span>${status.progress || 'Processing...'}`;
                     indicator.classList.add('active');
                 } else if (status.completed) {
-                    indicator.textContent = '✓ Generation complete!';
+                    indicator.textContent = '✓ Synced';
                     indicator.classList.remove('active');
                     btn.disabled = false;
                     clearInterval(statusPollInterval);
                     statusPollInterval = null;
-                    
-                    // Reload data after a short delay
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
+
+                    // Refresh table data in-place (no full page reload)
+                    await loadData();
                 } else if (status.error) {
                     indicator.innerHTML = `✗ <strong style="color: #d62728;">Error:</strong> ${escapeHtml(status.error)}`;
                     indicator.style.color = '#d62728';
@@ -2650,9 +2649,10 @@
         // Initialize mention autocomplete
         setupMentionAutocomplete();
 
-        // Load data and check Ashby config on page load
+        // Load data, check Ashby config, and auto-sync on page load
         loadData();
         checkAshbyStatus();
+        generateData();
     </script>
 </body>
 </html>
