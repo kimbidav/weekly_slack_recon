@@ -1148,6 +1148,83 @@
             color: #e65100;
         }
 
+        /* Ashby re-auth banner */
+        .ashby-auth-banner {
+            display: none;
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .ashby-auth-banner.visible {
+            display: block;
+        }
+
+        .ashby-auth-banner h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #5d4037;
+            margin-bottom: 6px;
+        }
+
+        .ashby-auth-banner p {
+            font-size: 13px;
+            color: #6d4c41;
+            margin-bottom: 12px;
+        }
+
+        .ashby-auth-banner ol {
+            font-size: 13px;
+            color: #6d4c41;
+            margin: 0 0 12px 18px;
+            line-height: 1.8;
+        }
+
+        .ashby-cookie-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .ashby-cookie-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ffcc02;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: monospace;
+            background: white;
+        }
+
+        .ashby-cookie-input:focus {
+            outline: none;
+            border-color: #e65100;
+        }
+
+        .ashby-cookie-submit {
+            padding: 8px 18px;
+            background: #e65100;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .ashby-cookie-submit:hover:not(:disabled) { background: #bf360c; }
+        .ashby-cookie-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+        .ashby-auth-status {
+            font-size: 12px;
+            margin-top: 6px;
+            min-height: 16px;
+            color: #666;
+        }
+
         /* Ashby path input row */
         .ashby-path-row {
             display: flex;
@@ -1207,6 +1284,26 @@
                 </div>
             </div>
         </header>
+
+        <!-- Ashby re-auth banner: shown when session cookie has expired -->
+        <div class="ashby-auth-banner" id="ashby-auth-banner">
+            <h3>🔒 Ashby session expired</h3>
+            <p>The Ashby session cookie has expired. Paste a fresh one below to re-authenticate and sync your pipeline.</p>
+            <ol>
+                <li>Open <strong>app.ashbyhq.com</strong> in Chrome and sign in</li>
+                <li>Open DevTools → Application → Cookies → <code>app.ashbyhq.com</code></li>
+                <li>Copy the value of the <code>sessionToken</code> cookie</li>
+                <li>Paste it below and click <strong>Save &amp; Sync</strong></li>
+            </ol>
+            <div class="ashby-cookie-row">
+                <input type="password" class="ashby-cookie-input" id="ashby-cookie-input"
+                    placeholder="Paste Ashby session cookie value…"
+                    onkeydown="if(event.key==='Enter') submitAshbyCookie()">
+                <button class="ashby-cookie-submit" id="ashby-cookie-submit"
+                    onclick="submitAshbyCookie()">Save &amp; Sync</button>
+            </div>
+            <div class="ashby-auth-status" id="ashby-auth-status"></div>
+        </div>
 
         <div class="stats" id="stats">
             <div class="stat-card">
@@ -1885,8 +1982,60 @@
                         statusPollInterval = null;
                     }
                 }
+                // Show/hide Ashby re-auth banner based on flag
+                showAshbyAuthBanner(status.ashby_auth_required === true);
             } catch (error) {
                 console.error('Error polling status:', error);
+            }
+        }
+
+        function showAshbyAuthBanner(show) {
+            const banner = document.getElementById('ashby-auth-banner');
+            if (!banner) return;
+            if (show) {
+                banner.classList.add('visible');
+            } else {
+                banner.classList.remove('visible');
+            }
+        }
+
+        async function submitAshbyCookie() {
+            const input = document.getElementById('ashby-cookie-input');
+            const btn = document.getElementById('ashby-cookie-submit');
+            const statusEl = document.getElementById('ashby-auth-status');
+            const cookie = (input.value || '').trim();
+            if (!cookie) {
+                statusEl.textContent = 'Please paste your Ashby session cookie.';
+                statusEl.style.color = '#c62828';
+                return;
+            }
+
+            btn.disabled = true;
+            statusEl.textContent = 'Saving cookie and syncing…';
+            statusEl.style.color = '#555';
+
+            try {
+                const response = await fetch('/api/ashby/set-cookie', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cookie }),
+                });
+                const result = await response.json();
+                if (response.ok && result.ok) {
+                    statusEl.textContent = `✓ Synced ${result.imported} candidates from Ashby.`;
+                    statusEl.style.color = '#2e7d32';
+                    input.value = '';
+                    showAshbyAuthBanner(false);
+                    await loadData();
+                } else {
+                    statusEl.textContent = `✗ ${result.error || 'Unknown error'}`;
+                    statusEl.style.color = '#c62828';
+                }
+            } catch (err) {
+                statusEl.textContent = `✗ ${err.message}`;
+                statusEl.style.color = '#c62828';
+            } finally {
+                btn.disabled = false;
             }
         }
 

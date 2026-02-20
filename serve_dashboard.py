@@ -41,7 +41,8 @@ generation_status = {
     "running": False,
     "progress": "",
     "error": None,
-    "completed": False
+    "completed": False,
+    "ashby_auth_required": False,   # True when session cookie has expired
 }
 
 # Global state for enrichment progress
@@ -108,6 +109,8 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_enrich_clear()
         elif parsed_path.path == '/api/ashby/import':
             self.handle_api_ashby_import()
+        elif parsed_path.path == '/api/ashby/set-cookie':
+            self.handle_api_ashby_set_cookie()
         else:
             self.send_error(404)
     
@@ -584,6 +587,84 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+    def handle_api_ashby_set_cookie(self):
+        """Save a fresh Ashby session cookie, then re-run extraction + import."""
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length).decode("utf-8")
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception:
+            payload = {}
+
+        cookie = (payload.get("cookie") or "").strip()
+        if not cookie:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "cookie is required"}).encode())
+            return
+
+        try:
+            # 1. Save the cookie using the auth-cookie CLI command
+            auth_cmd = [
+                "node", "--loader", "ts-node/esm",
+                "src/cli.ts", "auth-cookie",
+                "--cookie", cookie,
+            ]
+            auth_result = subprocess.run(
+                auth_cmd,
+                cwd=str(ASHBY_AUTOMATION_DIR),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if auth_result.returncode != 0:
+                raise RuntimeError(
+                    f"auth-cookie failed: {auth_result.stderr[-300:]}"
+                )
+
+            # 2. Re-run extraction with the fresh session
+            cfg = load_config()
+            ashby_path = cfg.ashby_json_path or ""
+            if not ashby_path:
+                raise RuntimeError("ASHBY_JSON_PATH not configured")
+
+            extracted = _run_ashby_extraction(ashby_path)
+            if not extracted:
+                raise RuntimeError("Extraction failed even after saving new cookie")
+
+            # 3. Import the fresh data
+            ashby_file = find_latest_ashby_export(ashby_path)
+            ashby_candidates = load_ashby_export(ashby_file)
+            json_path = DIRECTORY / "weekly_slack_reconciliation.json"
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            data["submissions"] = merge_ashby_into_submissions(
+                data.get("submissions", []), ashby_candidates
+            )
+            data["ashby_imported_at"] = datetime.now(tz=timezone.utc).isoformat()
+            data["ashby_candidate_count"] = len(ashby_candidates)
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            generation_status["ashby_auth_required"] = False
+            print(f"[ASHBY] Cookie saved + imported {len(ashby_candidates)} candidates")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "imported": len(ashby_candidates),
+            }).encode())
+
+        except Exception as e:
+            traceback.print_exc()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
 
 ASHBY_AUTOMATION_DIR = Path.home() / "Desktop" / "Ashby automation"
 ASHBY_EXTRACT_TIMEOUT = 300  # seconds (5 min) — extraction across all orgs can be slow
@@ -626,17 +707,21 @@ def _run_ashby_extraction(ashby_json_path: str) -> bool:
         )
         if result.returncode == 0:
             print(f"[ASHBY] Extraction succeeded → {out_json}")
+            generation_status["ashby_auth_required"] = False
             return True
         else:
-            print(f"[ASHBY] Extraction failed (exit {result.returncode})")
+            print(f"[ASHBY] Extraction failed (exit {result.returncode}) — session likely expired")
             if result.stderr:
-                print(f"[ASHBY] stderr: {result.stderr[-500:]}")  # last 500 chars
+                print(f"[ASHBY] stderr: {result.stderr[-500:]}")
+            generation_status["ashby_auth_required"] = True
             return False
     except subprocess.TimeoutExpired:
         print(f"[ASHBY] Extraction timed out after {ASHBY_EXTRACT_TIMEOUT}s")
+        generation_status["ashby_auth_required"] = True
         return False
     except Exception as e:
         print(f"[ASHBY] Extraction error: {e}")
+        generation_status["ashby_auth_required"] = True
         return False
 
 
