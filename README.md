@@ -27,7 +27,9 @@ Since DK is already a member of the channels, using a **User OAuth Token** is si
      - `channels:history`
      - `groups:history`
      - `users:read.email` (to look up DK by email)
+     - `users:read` (to resolve user names for mentions)
      - `reactions:read`
+     - `chat:write` (to send messages from dashboard)
    - Under **User Token Scopes**, click **Add New Scopes** and add the above.
    - Scroll up and click **Install to Workspace**.
    - Authorize the app for your account (DK's account).
@@ -48,6 +50,7 @@ If you prefer using a bot token instead:
      - `groups:history`
      - `users:read`
      - `reactions:read`
+     - `chat:write` (to send messages from dashboard)
    - Install the app to your workspace and copy the **Bot User OAuth Token** (starts with `xoxb-...`).
    - **Important:** You'll need to add the bot to each `candidatelabs-*` channel you want to scan.
 
@@ -106,7 +109,20 @@ After running the reconciliation tool (which now generates both `.md` and `.json
 - **Sortable**: Click column headers to sort by candidate name, channel, status, or days since submission
 - **Searchable**: Search candidates by name
 - **Summary stats**: View totals for each status category and follow-ups
+- **Thread viewer**: Click "View Thread" to see full Slack conversation in a side panel
+- **Send messages**: Reply to threads directly from the dashboard with @mention support
 - **Clean interface**: Modern, responsive design with color-coded status badges
+
+**Thread messaging features:**
+- **View conversations**: Click "View Thread" on any candidate to open a side panel showing the full Slack conversation
+- **Reply directly**: Type messages in the composer at the bottom of the thread panel
+- **@mention support**: Type `@` to see a dropdown of channel members and tag them in your message
+- **Keyboard navigation**: Use arrow keys to navigate mentions, Enter to select, Escape to close
+- **Real-time updates**: Thread reloads automatically after sending to show your new message
+
+**Requirements for messaging:**
+- The Slack token must have `chat:write` and `users:read` scopes (see Setup section above)
+- The user/bot must be a member of the channel to send messages
 
 #### Option 3: CLI
 

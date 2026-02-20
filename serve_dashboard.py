@@ -12,7 +12,7 @@ import json
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -26,6 +26,9 @@ from weekly_slack_recon.enrichment import enrich_submissions
 
 # Cached SlackAPI instance for follow-up sends
 _slack_instance: SlackAPI = None
+
+# Cache for Slack user ID -> display name (shared across thread fetches)
+_user_display_cache: dict = {}
 
 PORT = 8001
 DIRECTORY = Path(__file__).parent
@@ -69,7 +72,7 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         parsed_path = urlparse(self.path)
-        
+
         if parsed_path.path == '/api/status':
             self.handle_api_status()
         elif parsed_path.path == '/api/generate':
@@ -78,19 +81,27 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_enrich_status()
         elif parsed_path.path == '/api/enrich/results':
             self.handle_api_enrich_results()
+        elif parsed_path.path == '/api/thread':
+            self.handle_api_thread()
+        elif parsed_path.path == '/api/channel-members':
+            self.handle_api_channel_members()
         else:
             # Serve static files
             super().do_GET()
     
     def do_POST(self):
         parsed_path = urlparse(self.path)
-        
+
         if parsed_path.path == '/api/generate':
             self.handle_api_generate_post()
         elif parsed_path.path == '/api/send-followup':
             self.handle_api_send_followup()
+        elif parsed_path.path == '/api/send-thread-reply':
+            self.handle_api_send_thread_reply()
         elif parsed_path.path == '/api/enrich':
             self.handle_api_enrich()
+        elif parsed_path.path == '/api/enrich/clear':
+            self.handle_api_enrich_clear()
         else:
             self.send_error(404)
     
@@ -198,6 +209,173 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
 
+    def handle_api_thread(self):
+        """Fetch a Slack thread's messages and return as JSON."""
+        global _slack_instance, _user_display_cache
+
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        channel_id = params.get("channel_id", [None])[0]
+        thread_ts = params.get("thread_ts", [None])[0]
+
+        if not channel_id or not thread_ts:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "channel_id and thread_ts are required"}).encode())
+            return
+
+        try:
+            if _slack_instance is None:
+                cfg = load_config()
+                _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+            messages = _slack_instance.get_thread_messages(channel_id, thread_ts)
+
+            result = []
+            for msg in messages:
+                # Resolve user display name
+                author = self._resolve_user(msg.user)
+                ts_dt = datetime.fromtimestamp(float(msg.ts), tz=timezone.utc)
+                result.append({
+                    "author": author,
+                    "text": msg.text,
+                    "timestamp": ts_dt.isoformat(),
+                    "is_parent": msg.ts == thread_ts or (msg.thread_ts and msg.ts == msg.thread_ts),
+                    "user_id": msg.user,
+                })
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "messages": result}).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _resolve_user(self, user_id):
+        """Resolve a Slack user ID to display name, with caching."""
+        global _user_display_cache, _slack_instance
+        if not user_id:
+            return "unknown"
+        if user_id in _user_display_cache:
+            return _user_display_cache[user_id]
+        try:
+            resp = _slack_instance.client.users_info(user=user_id)
+            user = resp.get("user", {})
+            profile = user.get("profile", {})
+            display = (
+                profile.get("display_name")
+                or profile.get("real_name")
+                or user.get("name")
+                or user_id
+            )
+            _user_display_cache[user_id] = display
+            return display
+        except Exception:
+            _user_display_cache[user_id] = user_id
+            return user_id
+
+    def handle_api_send_thread_reply(self):
+        """Send a reply to a Slack thread."""
+        global _slack_instance
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+
+        try:
+            payload = json.loads(body)
+        except Exception:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        channel_id = payload.get("channel_id")
+        thread_ts = payload.get("thread_ts")
+        message = payload.get("message")
+
+        if not channel_id or not thread_ts or not message:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "channel_id, thread_ts, and message are required"}).encode())
+            return
+
+        try:
+            if _slack_instance is None:
+                cfg = load_config()
+                _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+            ts = _slack_instance.post_thread_reply(channel_id, thread_ts, message)
+
+            if ts:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "ts": ts}).encode())
+            else:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Failed to send message"}).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def handle_api_channel_members(self):
+        """Get channel members for mention autocomplete."""
+        global _slack_instance
+
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        channel_id = params.get("channel_id", [None])[0]
+
+        if not channel_id:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "channel_id is required"}).encode())
+            return
+
+        try:
+            if _slack_instance is None:
+                cfg = load_config()
+                _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+            # Get channel members
+            resp = _slack_instance.client.conversations_members(channel=channel_id, limit=1000)
+            member_ids = resp.get("members", [])
+
+            # Resolve member IDs to names
+            members = []
+            for user_id in member_ids:
+                display_name = self._resolve_user(user_id)
+                members.append({
+                    "id": user_id,
+                    "name": display_name
+                })
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "members": members}).encode())
+
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch channel members: {e}")
+            traceback.print_exc()
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
     def handle_api_enrich_status(self):
         """Return current enrichment status."""
         self.send_response(200)
@@ -249,6 +427,41 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps({"results": enrichment_status["results"]}).encode())
+
+    def handle_api_enrich_clear(self):
+        """Clear all AI summaries from the JSON data file."""
+        try:
+            json_path = DIRECTORY / "weekly_slack_reconciliation.json"
+            if not json_path.exists():
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "No data file found"}).encode())
+                return
+
+            with open(json_path, "r") as f:
+                data = json.load(f)
+
+            cleared = 0
+            for sub in data.get("submissions", []):
+                if sub.get("ai_summary") or sub.get("ai_enriched_at"):
+                    sub["ai_summary"] = None
+                    sub["ai_enriched_at"] = None
+                    cleared += 1
+
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "cleared": cleared}).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
 
 
 def update_progress(message: str):
@@ -338,7 +551,6 @@ def run_enrichment(payload: dict = None):
         json_path = DIRECTORY / "weekly_slack_reconciliation.json"
         if not json_path.exists():
             enrichment_status["error"] = "No submission data found. Run 'Generate Data' first."
-            enrichment_status["running"] = False
             return
 
         with open(json_path, "r") as f:
@@ -347,7 +559,6 @@ def run_enrichment(payload: dict = None):
         submissions_data = data.get("submissions", [])
         if not submissions_data:
             enrichment_status["error"] = "No submissions in data file."
-            enrichment_status["running"] = False
             return
 
         # Filter candidates if payload specifies which ones
@@ -380,7 +591,6 @@ def run_enrichment(payload: dict = None):
 
         if not filtered_submissions:
             enrichment_status["error"] = "No submissions match the filter criteria."
-            enrichment_status["running"] = False
             return
 
         enrichment_status["total"] = len(filtered_submissions)
@@ -389,6 +599,8 @@ def run_enrichment(payload: dict = None):
         cfg = load_config()
         slack = SlackAPI(token=cfg.slack_bot_token)
 
+        all_results = []
+
         def progress_callback(phase, current, total, detail):
             enrichment_status["phase"] = phase
             enrichment_status["current"] = current
@@ -396,26 +608,36 @@ def run_enrichment(payload: dict = None):
             enrichment_status["detail"] = detail
             print(f"[ENRICH] {phase}: {current}/{total} - {detail}")
 
-        results = enrich_submissions(cfg, slack, filtered_submissions, progress_callback=progress_callback)
+        def result_callback(result, index, total):
+            """Called after each candidate is enriched — write to JSON immediately."""
+            all_results.append(result)
+            enrichment_status["current"] = index + 1
+            enrichment_status["detail"] = f"{result.candidate_name} done ({index + 1}/{total})"
+            # Write this single result to JSON so the dashboard can pick it up
+            _merge_enrichment_into_json(json_path, [result])
 
-        # Store results
+        results = enrich_submissions(
+            cfg, slack, filtered_submissions,
+            progress_callback=progress_callback,
+            result_callback=result_callback,
+        )
+
+        # Store all results
         enrichment_status["results"] = [r.to_dict() for r in results]
-
-        # Also merge results into the JSON file so the dashboard can show them
-        _merge_enrichment_into_json(json_path, results)
 
         enrichment_status["phase"] = "complete"
         enrichment_status["completed"] = True
-        enrichment_status["running"] = False
         enrichment_status["detail"] = f"Done! Enriched {len(results)} candidates."
 
     except Exception as e:
         error_msg = str(e)
         enrichment_status["error"] = error_msg
-        enrichment_status["running"] = False
         enrichment_status["detail"] = f"Error: {error_msg}"
         print(f"[ENRICH ERROR] {error_msg}")
         traceback.print_exc()
+
+    finally:
+        enrichment_status["running"] = False
 
 
 def _merge_enrichment_into_json(json_path: Path, results: list):

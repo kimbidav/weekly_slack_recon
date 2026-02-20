@@ -139,6 +139,7 @@ def enrich_submissions(
     slack: SlackAPI,
     submissions: List[CandidateSubmission],
     progress_callback=None,
+    result_callback=None,
 ) -> List[EnrichmentResult]:
     """Run full enrichment pipeline: gather context then call Claude for each candidate.
 
@@ -148,6 +149,9 @@ def enrich_submissions(
         submissions: Submissions to enrich
         progress_callback: Optional callable(phase, current, total, detail)
             phase is "gathering" or "analyzing"
+        result_callback: Optional callable(result: EnrichmentResult, index: int, total: int)
+            Called immediately after each candidate is enriched, enabling
+            incremental writes (e.g. saving to JSON after each result).
 
     Returns:
         List of EnrichmentResult, one per submission
@@ -175,6 +179,10 @@ def enrich_submissions(
 
         result = _call_claude(client, cfg, ctx)
         results.append(result)
+
+        # Notify caller immediately so it can write incrementally
+        if result_callback:
+            result_callback(result, i, len(contexts))
 
     if progress_callback:
         progress_callback("complete", len(contexts), len(contexts), "done")

@@ -697,6 +697,29 @@
             color: #7c3aed;
         }
 
+        .enrich-progress-bar-container {
+            width: 100%;
+            max-width: 260px;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+            display: none;
+        }
+
+        .enrich-progress-bar-container.active {
+            display: block;
+        }
+
+        .enrich-progress-bar {
+            height: 100%;
+            background: #7c3aed;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
         .ai-status-cell {
             max-width: 300px;
             min-width: 180px;
@@ -740,6 +763,301 @@
             gap: 8px;
             align-items: flex-end;
         }
+
+        /* Thread side panel */
+        .thread-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.25);
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .thread-panel-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .thread-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 440px;
+            max-width: 90vw;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 301;
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .thread-panel.visible {
+            transform: translateX(0);
+        }
+
+        .thread-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e9ecef;
+            flex-shrink: 0;
+        }
+
+        .thread-panel-header h2 {
+            font-size: 15px;
+            color: #333;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .thread-panel-header .thread-channel {
+            font-size: 12px;
+            color: #888;
+            font-weight: 400;
+            margin-top: 2px;
+        }
+
+        .thread-panel-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .thread-panel-header .open-slack-link {
+            font-size: 12px;
+            color: #4a90e2;
+            text-decoration: none;
+        }
+
+        .thread-panel-header .open-slack-link:hover {
+            text-decoration: underline;
+        }
+
+        .thread-panel-header .close-thread-btn {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #999;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .thread-panel-header .close-thread-btn:hover {
+            color: #333;
+        }
+
+        .thread-panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .thread-loading {
+            text-align: center;
+            color: #888;
+            padding: 40px 0;
+            font-size: 14px;
+        }
+
+        .thread-error {
+            text-align: center;
+            color: #d62728;
+            padding: 40px 20px;
+            font-size: 13px;
+        }
+
+        .thread-msg {
+            margin-bottom: 16px;
+        }
+
+        .thread-msg.parent-msg {
+            padding-bottom: 14px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 18px;
+        }
+
+        .thread-msg-author {
+            font-weight: 600;
+            font-size: 13px;
+            color: #1a1a1a;
+            display: inline;
+        }
+
+        .thread-msg-time {
+            font-size: 11px;
+            color: #aaa;
+            margin-left: 8px;
+        }
+
+        .thread-msg-text {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.55;
+            margin-top: 4px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .thread-msg-text a {
+            color: #4a90e2;
+            text-decoration: none;
+        }
+
+        .thread-msg-text a:hover {
+            text-decoration: underline;
+        }
+
+        .thread-msg-text .slack-bold {
+            font-weight: 600;
+        }
+
+        .thread-msg-text .slack-italic {
+            font-style: italic;
+        }
+
+        .thread-msg-text .slack-code {
+            font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+            font-size: 12px;
+            background: #f5f5f5;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .thread-msg-text .slack-mention {
+            color: #4a90e2;
+            background: #e8f0fe;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .thread-reply-count {
+            font-size: 12px;
+            color: #888;
+            padding: 4px 0 8px;
+        }
+
+        /* Thread message composer */
+        .thread-composer {
+            position: relative;
+            border-top: 1px solid #e9ecef;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            flex-shrink: 0;
+        }
+
+        .thread-composer-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+            resize: vertical;
+            color: #333;
+            background: white;
+        }
+
+        .thread-composer-textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .thread-composer-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .thread-composer-help {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .thread-send-btn {
+            padding: 8px 20px;
+            background: #2ca02c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .thread-send-btn:hover:not(:disabled) {
+            background: #248a24;
+        }
+
+        .thread-send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .thread-send-status {
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .thread-send-status.success {
+            color: #2ca02c;
+        }
+
+        .thread-send-status.error {
+            color: #d62728;
+        }
+
+        /* Mention autocomplete */
+        .mention-autocomplete {
+            position: absolute;
+            bottom: 100%;
+            left: 20px;
+            right: 20px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 400;
+            display: none;
+        }
+
+        .mention-autocomplete.visible {
+            display: block;
+        }
+
+        .mention-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .mention-option:hover,
+        .mention-option.selected {
+            background: #e8f0fe;
+        }
+
+        .mention-option-name {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -755,8 +1073,14 @@
                     <div class="progress-indicator" id="progress-indicator"></div>
                 </div>
                 <div class="button-group">
-                    <button class="enrich-btn" id="enrich-btn" onclick="startEnrichment()">Enrich with AI</button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="enrich-btn" id="enrich-btn" onclick="startEnrichment()">Enrich with AI</button>
+                        <button onclick="clearAiSummaries()" style="background: none; border: 1px solid #ddd; border-radius: 5px; padding: 8px 12px; font-size: 12px; color: #888; cursor: pointer;" title="Remove all AI summaries">Clear</button>
+                    </div>
                     <div class="enrich-progress" id="enrich-progress"></div>
+                    <div class="enrich-progress-bar-container" id="enrich-bar-container">
+                        <div class="enrich-progress-bar" id="enrich-bar"></div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -872,6 +1196,38 @@
         <button class="preview-btn" onclick="showFollowupPreview()">Preview Follow-up</button>
     </div>
 
+    <!-- Thread side panel -->
+    <div class="thread-panel-overlay" id="thread-overlay" onclick="closeThreadPanel()"></div>
+    <div class="thread-panel" id="thread-panel">
+        <div class="thread-panel-header">
+            <div>
+                <h2 id="thread-panel-title">Thread</h2>
+                <div class="thread-channel" id="thread-panel-channel"></div>
+            </div>
+            <div class="thread-panel-header-actions">
+                <a class="open-slack-link" id="thread-slack-link" href="#" target="_blank">Open in Slack</a>
+                <button class="close-thread-btn" onclick="closeThreadPanel()">&times;</button>
+            </div>
+        </div>
+        <div class="thread-panel-body" id="thread-panel-body">
+        </div>
+        <div class="thread-composer" id="thread-composer">
+            <textarea
+                class="thread-composer-textarea"
+                id="thread-message-input"
+                placeholder="Type a message... (use @ to mention people)"
+            ></textarea>
+            <div class="mention-autocomplete" id="mention-autocomplete"></div>
+            <div class="thread-composer-actions">
+                <div>
+                    <span class="thread-send-status" id="thread-send-status"></span>
+                    <span class="thread-composer-help">Use @name to mention people</span>
+                </div>
+                <button class="thread-send-btn" id="thread-send-btn" onclick="sendThreadMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allData = [];
         let filteredData = [];
@@ -925,14 +1281,23 @@
 
         function initializeFilters() {
             const channelSelect = document.getElementById('filter-channel');
+            const currentValue = channelSelect.value; // preserve selection
             const channels = [...new Set(allData.map(s => s.channel_name))].sort();
-            
+
+            // Clear existing options (keep the "All Channels" option)
+            while (channelSelect.options.length > 1) {
+                channelSelect.remove(1);
+            }
+
             channels.forEach(channel => {
                 const option = document.createElement('option');
                 option.value = channel;
                 option.textContent = channel;
                 channelSelect.appendChild(option);
             });
+
+            // Restore previous selection if still valid
+            channelSelect.value = currentValue;
         }
 
         function updateStats() {
@@ -1010,37 +1375,41 @@
             table.style.display = 'table';
             tbody.innerHTML = '';
 
-            filteredData.forEach(submission => {
-                const row = document.createElement('tr');
-                const key = submissionKey(submission);
-                const isActive = submission.status !== 'CLOSED';
-                const isChecked = selectedSet.has(key);
-                
-                const statusClass = submission.status === 'CLOSED' ? 'status-closed' :
-                                   submission.status === 'IN PROCESS — explicit' ? 'status-explicit' :
-                                   'status-unclear';
-                
-                const statusDisplay = submission.status === 'IN PROCESS — explicit' ? 
-                    'IN PROCESS — explicit' : submission.status;
+            filteredData.forEach((submission, idx) => {
+                try {
+                    const row = document.createElement('tr');
+                    const key = submissionKey(submission);
+                    const isActive = submission.status !== 'CLOSED';
+                    const isChecked = selectedSet.has(key);
+                    
+                    const statusClass = submission.status === 'CLOSED' ? 'status-closed' :
+                                       submission.status === 'IN PROCESS — explicit' ? 'status-explicit' :
+                                       'status-unclear';
+                    
+                    const statusDisplay = submission.status === 'IN PROCESS — explicit' ? 
+                        'IN PROCESS — explicit' : submission.status;
 
-                const aiCell = renderAiStatusCell(submission);
+                    const aiCell = renderAiStatusCell(submission);
 
-                row.innerHTML = `
-                    <td class="col-select">
-                        ${isActive ? `<input type="checkbox" data-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} onchange="toggleSelection(this)">` : ''}
-                    </td>
-                    <td><strong>${escapeHtml(submission.candidate_name)}</strong></td>
-                    <td>${escapeHtml(submission.channel_name)}</td>
-                    <td>
-                        <span class="status-badge ${statusClass}">${statusDisplay}</span>
-                        ${submission.needs_followup ? '<span class="status-badge followup-badge">Follow-up</span>' : ''}
-                    </td>
-                    <td class="ai-status-cell">${aiCell}</td>
-                    <td><span class="days-old">${submission.days_since_submission} days</span></td>
-                    <td><a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a></td>
-                    <td>${submission.slack_url ? `<a href="${escapeHtml(submission.slack_url)}" target="_blank">View Thread</a>` : '—'}</td>
-                `;
-                tbody.appendChild(row);
+                    row.innerHTML = `
+                        <td class="col-select">
+                            ${isActive ? `<input type="checkbox" data-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} onchange="toggleSelection(this)">` : ''}
+                        </td>
+                        <td><strong>${escapeHtml(submission.candidate_name)}</strong></td>
+                        <td>${escapeHtml(submission.channel_name)}</td>
+                        <td>
+                            <span class="status-badge ${statusClass}">${statusDisplay}</span>
+                            ${submission.needs_followup ? '<span class="status-badge followup-badge">Follow-up</span>' : ''}
+                        </td>
+                        <td class="ai-status-cell">${aiCell}</td>
+                        <td><span class="days-old">${submission.days_since_submission} days</span></td>
+                        <td><a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a></td>
+                        <td>${submission.slack_url ? `<a href="#" onclick="openThreadPanel('${escapeAttr(submission.channel_id)}', '${escapeAttr(submission.slack_url)}', '${escapeAttr(submission.candidate_name)}', '${escapeAttr(submission.channel_name)}'); return false;">View Thread</a>` : '—'}</td>
+                    `;
+                    tbody.appendChild(row);
+                } catch (err) {
+                    console.error(`Error rendering row ${idx} (${submission.candidate_name}):`, err);
+                }
             });
 
             // Update sort indicators
@@ -1470,14 +1839,22 @@
         }
 
         let enrichPollInterval = null;
+        let lastEnrichReloadAt = 0;      // timestamp of last incremental table reload
+        let lastEnrichReloadCount = 0;   // number of completed candidates at last reload
 
         async function startEnrichment() {
             const btn = document.getElementById('enrich-btn');
             const indicator = document.getElementById('enrich-progress');
+            const barContainer = document.getElementById('enrich-bar-container');
+            const bar = document.getElementById('enrich-bar');
 
             btn.disabled = true;
             indicator.innerHTML = '<span class="progress-spinner"></span>Starting enrichment...';
             indicator.classList.add('active');
+            barContainer.classList.add('active');
+            bar.style.width = '0%';
+            lastEnrichReloadAt = Date.now();
+            lastEnrichReloadCount = 0;
 
             try {
                 const response = await fetch('/api/enrich', {
@@ -1496,7 +1873,21 @@
             } catch (error) {
                 indicator.textContent = `Error: ${error.message}`;
                 indicator.classList.remove('active');
+                barContainer.classList.remove('active');
                 btn.disabled = false;
+            }
+        }
+
+        async function clearAiSummaries() {
+            if (!confirm('Clear all AI summaries? This cannot be undone.')) return;
+            try {
+                const response = await fetch('/api/enrich/clear', { method: 'POST' });
+                const data = await response.json();
+                if (data.ok) {
+                    await loadData();
+                }
+            } catch (err) {
+                alert('Error clearing summaries: ' + err.message);
             }
         }
 
@@ -1506,6 +1897,8 @@
                 const status = await response.json();
                 const indicator = document.getElementById('enrich-progress');
                 const btn = document.getElementById('enrich-btn');
+                const barContainer = document.getElementById('enrich-bar-container');
+                const bar = document.getElementById('enrich-bar');
 
                 if (status.running) {
                     const phaseName = status.phase === 'gathering' ? 'Gathering context' :
@@ -1515,19 +1908,44 @@
                     const detail = status.detail && status.detail !== 'done' ? `: ${status.detail}` : '';
                     indicator.innerHTML = `<span class="progress-spinner"></span>${phaseName}${progress}${detail}`;
                     indicator.classList.add('active');
+
+                    // Update progress bar
+                    if (status.total > 0) {
+                        const pct = Math.round((status.current / status.total) * 100);
+                        bar.style.width = pct + '%';
+                        barContainer.classList.add('active');
+                    }
+
+                    // Incremental table refresh: reload every 5 new candidates or 10 seconds
+                    const now = Date.now();
+                    const newlyCompleted = status.current - lastEnrichReloadCount;
+                    const timeSinceReload = now - lastEnrichReloadAt;
+                    if (status.phase === 'analyzing' && (newlyCompleted >= 5 || timeSinceReload >= 10000) && status.current > lastEnrichReloadCount) {
+                        lastEnrichReloadAt = now;
+                        lastEnrichReloadCount = status.current;
+                        loadData();
+                    }
                 } else if (status.completed) {
                     indicator.textContent = `✓ Enrichment complete!`;
                     indicator.classList.remove('active');
+                    bar.style.width = '100%';
                     btn.disabled = false;
                     clearInterval(enrichPollInterval);
                     enrichPollInterval = null;
 
-                    // Reload data to show AI results
-                    setTimeout(() => loadData(), 500);
+                    // Final reload to show all AI results
+                    await loadData();
+
+                    // Fade out the progress bar after a short delay
+                    setTimeout(() => {
+                        barContainer.classList.remove('active');
+                        bar.style.width = '0%';
+                    }, 2000);
                 } else if (status.error) {
                     indicator.innerHTML = `✗ ${escapeHtml(status.error)}`;
                     indicator.style.color = '#dc2626';
                     indicator.classList.remove('active');
+                    barContainer.classList.remove('active');
                     btn.disabled = false;
                     clearInterval(enrichPollInterval);
                     enrichPollInterval = null;
@@ -1535,6 +1953,7 @@
                     btn.disabled = false;
                     indicator.textContent = '';
                     indicator.classList.remove('active');
+                    barContainer.classList.remove('active');
                     if (enrichPollInterval) {
                         clearInterval(enrichPollInterval);
                         enrichPollInterval = null;
@@ -1544,6 +1963,404 @@
                 console.error('Error polling enrich status:', error);
             }
         }
+
+        // --- Thread side panel ---
+
+        let currentThreadChannelId = null;
+        let currentThreadTs = null;
+        let channelMembers = [];
+
+        function escapeAttr(text) {
+            // Escape single quotes for use inside onclick attribute strings
+            return escapeHtml(text).replace(/'/g, '&#39;');
+        }
+
+        function parseThreadTsFromUrl(slackUrl) {
+            // Extract thread_ts from slack URL query param
+            try {
+                const url = new URL(slackUrl);
+                return url.searchParams.get('thread_ts');
+            } catch {
+                // Fallback: regex
+                const match = slackUrl.match(/thread_ts=([0-9.]+)/);
+                return match ? match[1] : null;
+            }
+        }
+
+        function openThreadPanel(channelId, slackUrl, candidateName, channelName) {
+            const panel = document.getElementById('thread-panel');
+            const overlay = document.getElementById('thread-overlay');
+            const body = document.getElementById('thread-panel-body');
+            const title = document.getElementById('thread-panel-title');
+            const channel = document.getElementById('thread-panel-channel');
+            const slackLink = document.getElementById('thread-slack-link');
+            const messageInput = document.getElementById('thread-message-input');
+            const sendStatus = document.getElementById('thread-send-status');
+
+            title.textContent = candidateName;
+            channel.textContent = '#' + channelName;
+            slackLink.href = slackUrl;
+
+            body.innerHTML = '<div class="thread-loading"><span class="progress-spinner"></span> Loading thread...</div>';
+
+            // Reset composer state
+            messageInput.value = '';
+            sendStatus.textContent = '';
+            sendStatus.className = 'thread-send-status';
+
+            panel.classList.add('visible');
+            overlay.classList.add('visible');
+
+            const threadTs = parseThreadTsFromUrl(slackUrl);
+            if (!threadTs) {
+                body.innerHTML = '<div class="thread-error">Could not parse thread ID from URL.</div>';
+                return;
+            }
+
+            // Store current context for sending messages
+            currentThreadChannelId = channelId;
+            currentThreadTs = threadTs;
+
+            // Fetch thread messages and channel members in parallel
+            fetchThreadMessages(channelId, threadTs);
+            fetchChannelMembers(channelId);
+        }
+
+        function closeThreadPanel() {
+            document.getElementById('thread-panel').classList.remove('visible');
+            document.getElementById('thread-overlay').classList.remove('visible');
+            currentThreadChannelId = null;
+            currentThreadTs = null;
+            channelMembers = [];
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('thread-panel').classList.contains('visible')) {
+                closeThreadPanel();
+            }
+        });
+
+        async function fetchThreadMessages(channelId, threadTs) {
+            const body = document.getElementById('thread-panel-body');
+
+            try {
+                const response = await fetch(`/api/thread?channel_id=${encodeURIComponent(channelId)}&thread_ts=${encodeURIComponent(threadTs)}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.ok) {
+                    body.innerHTML = `<div class="thread-error">Failed to load thread: ${escapeHtml(data.error || 'Unknown error')}</div>`;
+                    return;
+                }
+
+                const messages = data.messages || [];
+                if (messages.length === 0) {
+                    body.innerHTML = '<div class="thread-error">No messages found in this thread.</div>';
+                    return;
+                }
+
+                // Build a user_id -> author lookup for mention resolution
+                const userMap = {};
+                messages.forEach(m => {
+                    if (m.user_id && m.author) userMap[m.user_id] = m.author;
+                });
+
+                let html = '';
+                const parent = messages[0];
+                const replies = messages.slice(1);
+
+                html += renderThreadMessage(parent, true, userMap);
+
+                if (replies.length > 0) {
+                    html += `<div class="thread-reply-count">${replies.length} repl${replies.length === 1 ? 'y' : 'ies'}</div>`;
+                    replies.forEach(msg => {
+                        html += renderThreadMessage(msg, false, userMap);
+                    });
+                }
+
+                body.innerHTML = html;
+            } catch (err) {
+                body.innerHTML = `<div class="thread-error">Error: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function renderThreadMessage(msg, isParent, userMap) {
+            const d = new Date(msg.timestamp);
+            const timeStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+                ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const formattedText = formatSlackText(msg.text, userMap);
+            return `
+                <div class="thread-msg ${isParent ? 'parent-msg' : ''}">
+                    <span class="thread-msg-author">${escapeHtml(msg.author)}</span>
+                    <span class="thread-msg-time">${timeStr}</span>
+                    <div class="thread-msg-text">${formattedText}</div>
+                </div>`;
+        }
+
+        function formatSlackText(text, userMap) {
+            if (!text) return '';
+
+            // Escape HTML first
+            let s = escapeHtml(text);
+
+            // Slack links: <url|label> or <url>
+            s = s.replace(/&lt;(https?:\/\/[^|&>]+)\|([^&>]+)&gt;/g, '<a href="$1" target="_blank">$2</a>');
+            s = s.replace(/&lt;(https?:\/\/[^&>]+)&gt;/g, '<a href="$1" target="_blank">$1</a>');
+
+            // User mentions: <@U12345>
+            s = s.replace(/&lt;@(U[A-Z0-9]+)&gt;/g, (match, uid) => {
+                const name = userMap[uid] || uid;
+                return `<span class="slack-mention">@${escapeHtml(name)}</span>`;
+            });
+
+            // Channel mentions: <#C12345|channel-name>
+            s = s.replace(/&lt;#C[A-Z0-9]+\|([^&>]+)&gt;/g, '<span class="slack-mention">#$1</span>');
+
+            // Inline code: `code`
+            s = s.replace(/`([^`]+)`/g, '<span class="slack-code">$1</span>');
+
+            // Bold: *text*
+            s = s.replace(/(?<![\\w])\*([^*\n]+)\*(?![\\w])/g, '<span class="slack-bold">$1</span>');
+
+            // Italic: _text_
+            s = s.replace(/(?<![\\w])_([^_\n]+)_(?![\\w])/g, '<span class="slack-italic">$1</span>');
+
+            return s;
+        }
+
+        // --- Channel members and messaging ---
+
+        async function fetchChannelMembers(channelId) {
+            try {
+                const response = await fetch(`/api/channel-members?channel_id=${encodeURIComponent(channelId)}`);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('Failed to fetch channel members:', response.status, text);
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.ok && data.members) {
+                    channelMembers = data.members;
+                } else if (data.error) {
+                    console.error('API error fetching channel members:', data.error);
+                }
+            } catch (err) {
+                console.error('Error fetching channel members:', err);
+            }
+        }
+
+        async function sendThreadMessage() {
+            if (!currentThreadChannelId || !currentThreadTs) {
+                return;
+            }
+
+            const messageInput = document.getElementById('thread-message-input');
+            const sendBtn = document.getElementById('thread-send-btn');
+            const sendStatus = document.getElementById('thread-send-status');
+            const message = messageInput.value.trim();
+
+            if (!message) {
+                sendStatus.textContent = 'Message cannot be empty';
+                sendStatus.className = 'thread-send-status error';
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            sendStatus.textContent = '';
+
+            try {
+                const response = await fetch('/api/send-thread-reply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        channel_id: currentThreadChannelId,
+                        thread_ts: currentThreadTs,
+                        message: message,
+                    }),
+                });
+                const result = await response.json();
+
+                if (result.ok) {
+                    sendStatus.textContent = '✓ Message sent';
+                    sendStatus.className = 'thread-send-status success';
+                    messageInput.value = '';
+                    sendBtn.textContent = 'Send';
+                    sendBtn.disabled = false;
+
+                    // Reload thread messages to show the new message
+                    setTimeout(() => {
+                        fetchThreadMessages(currentThreadChannelId, currentThreadTs);
+                        sendStatus.textContent = '';
+                    }, 1000);
+                } else {
+                    sendBtn.textContent = 'Send';
+                    sendBtn.disabled = false;
+                    sendStatus.textContent = `Error: ${result.error}`;
+                    sendStatus.className = 'thread-send-status error';
+                }
+            } catch (err) {
+                sendBtn.textContent = 'Send';
+                sendBtn.disabled = false;
+                sendStatus.textContent = `Error: ${err.message}`;
+                sendStatus.className = 'thread-send-status error';
+            }
+        }
+
+        // --- Mention autocomplete ---
+
+        let mentionAutocompleteVisible = false;
+        let mentionAutocompleteIndex = -1;
+        let mentionSearchStart = -1;
+
+        function setupMentionAutocomplete() {
+            const messageInput = document.getElementById('thread-message-input');
+            const autocomplete = document.getElementById('mention-autocomplete');
+
+            messageInput.addEventListener('input', (e) => {
+                handleMentionInput(e.target);
+            });
+
+            messageInput.addEventListener('keydown', (e) => {
+                if (!mentionAutocompleteVisible) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const options = autocomplete.querySelectorAll('.mention-option');
+                    mentionAutocompleteIndex = Math.min(mentionAutocompleteIndex + 1, options.length - 1);
+                    updateMentionSelection();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    mentionAutocompleteIndex = Math.max(mentionAutocompleteIndex - 1, 0);
+                    updateMentionSelection();
+                } else if (e.key === 'Enter' && mentionAutocompleteVisible) {
+                    e.preventDefault();
+                    const options = autocomplete.querySelectorAll('.mention-option');
+                    if (options[mentionAutocompleteIndex]) {
+                        selectMention(options[mentionAutocompleteIndex].dataset.userId, options[mentionAutocompleteIndex].dataset.userName);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideMentionAutocomplete();
+                }
+            });
+
+            // Click outside to close
+            document.addEventListener('click', (e) => {
+                if (!autocomplete.contains(e.target) && e.target !== messageInput) {
+                    hideMentionAutocomplete();
+                }
+            });
+        }
+
+        function handleMentionInput(input) {
+            const text = input.value;
+            const cursorPos = input.selectionStart;
+
+            // Find the last @ before cursor that's either at start or preceded by whitespace
+            let searchStart = -1;
+            for (let i = cursorPos - 1; i >= 0; i--) {
+                if (text[i] === '@') {
+                    // Check if @ is at start or preceded by whitespace
+                    if (i === 0 || text[i-1] === ' ' || text[i-1] === '\n') {
+                        searchStart = i;
+                        break;
+                    }
+                }
+                if (text[i] === ' ' || text[i] === '\n') {
+                    break;
+                }
+            }
+
+            if (searchStart === -1) {
+                hideMentionAutocomplete();
+                return;
+            }
+
+            const searchTerm = text.substring(searchStart + 1, cursorPos).toLowerCase();
+            mentionSearchStart = searchStart;
+
+            // If no members loaded yet, hide autocomplete
+            if (channelMembers.length === 0) {
+                hideMentionAutocomplete();
+                return;
+            }
+
+            // Filter members
+            const matches = channelMembers.filter(m =>
+                m.name.toLowerCase().includes(searchTerm)
+            ).slice(0, 10);
+
+            if (matches.length === 0) {
+                hideMentionAutocomplete();
+                return;
+            }
+
+            showMentionAutocomplete(matches, input);
+        }
+
+        function showMentionAutocomplete(matches, input) {
+            const autocomplete = document.getElementById('mention-autocomplete');
+
+            autocomplete.innerHTML = matches.map((m, idx) => `
+                <div class="mention-option ${idx === 0 ? 'selected' : ''}"
+                     data-user-id="${escapeHtml(m.id)}"
+                     data-user-name="${escapeHtml(m.name)}">
+                    <div class="mention-option-name">@${escapeHtml(m.name)}</div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            autocomplete.querySelectorAll('.mention-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    selectMention(this.dataset.userId, this.dataset.userName);
+                });
+            });
+
+            autocomplete.classList.add('visible');
+            mentionAutocompleteVisible = true;
+            mentionAutocompleteIndex = 0;
+        }
+
+        function hideMentionAutocomplete() {
+            const autocomplete = document.getElementById('mention-autocomplete');
+            autocomplete.classList.remove('visible');
+            mentionAutocompleteVisible = false;
+            mentionAutocompleteIndex = -1;
+            mentionSearchStart = -1;
+        }
+
+        function updateMentionSelection() {
+            const options = document.querySelectorAll('.mention-option');
+            options.forEach((opt, idx) => {
+                opt.classList.toggle('selected', idx === mentionAutocompleteIndex);
+            });
+        }
+
+        function selectMention(userId, userName) {
+            const messageInput = document.getElementById('thread-message-input');
+            const text = messageInput.value;
+            const cursorPos = messageInput.selectionStart;
+
+            // Replace from @ to cursor with the mention
+            const before = text.substring(0, mentionSearchStart);
+            const after = text.substring(cursorPos);
+            const mention = `<@${userId}>`;
+
+            messageInput.value = before + mention + after;
+
+            // Move cursor after the mention
+            const newCursorPos = before.length + mention.length;
+            messageInput.setSelectionRange(newCursorPos, newCursorPos);
+            messageInput.focus();
+
+            hideMentionAutocomplete();
+        }
+
+        // Initialize mention autocomplete
+        setupMentionAutocomplete();
 
         // Load data on page load
         loadData();
