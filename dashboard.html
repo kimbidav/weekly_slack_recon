@@ -1599,13 +1599,23 @@
 
         function sortData() {
             filteredData.sort((a, b) => {
-                let aVal = a[sortColumn];
-                let bVal = b[sortColumn];
+                let aVal, bVal;
 
-                // Handle different data types
-                if (typeof aVal === 'string') {
-                    aVal = aVal.toLowerCase();
-                    bVal = bVal.toLowerCase();
+                // Channel / Company: Slack uses formatted channel_name, Ashby uses company_name
+                if (sortColumn === 'channel_name') {
+                    aVal = a.source === 'ashby'
+                        ? (a.company_name || '').toLowerCase()
+                        : formatChannelName(a.channel_name || '').toLowerCase();
+                    bVal = b.source === 'ashby'
+                        ? (b.company_name || '').toLowerCase()
+                        : formatChannelName(b.channel_name || '').toLowerCase();
+                } else {
+                    aVal = a[sortColumn] ?? '';
+                    bVal = b[sortColumn] ?? '';
+                    if (typeof aVal === 'string') {
+                        aVal = aVal.toLowerCase();
+                        bVal = (typeof bVal === 'string' ? bVal : String(bVal)).toLowerCase();
+                    }
                 }
 
                 if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
