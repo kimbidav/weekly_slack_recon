@@ -1498,9 +1498,15 @@
                 document.getElementById('loading').style.display = 'none';
                 
                 if (data.generated_at) {
-                    const date = new Date(data.generated_at);
-                    document.getElementById('generated-at').textContent = 
-                        `Generated: ${date.toLocaleString()}`;
+                    const slackAge = timeAgo(data.generated_at);
+                    const slackFull = new Date(data.generated_at).toLocaleString();
+                    let subtitle = `Slack synced <span title="${slackFull}">${slackAge}</span>`;
+                    if (data.ashby_imported_at) {
+                        const ashbyAge = timeAgo(data.ashby_imported_at);
+                        const ashbyFull = new Date(data.ashby_imported_at).toLocaleString();
+                        subtitle += ` · Ashby imported <span title="${ashbyFull}">${ashbyAge}</span>`;
+                    }
+                    document.getElementById('generated-at').innerHTML = subtitle;
                 }
                 
                 // Backfill source field for older records that predate this feature
@@ -1833,6 +1839,18 @@
 
         // --- Ashby Import ---
 
+        function timeAgo(isoString) {
+            if (!isoString) return '';
+            const diffMs = Date.now() - new Date(isoString).getTime();
+            const mins  = Math.floor(diffMs / 60000);
+            const hours = Math.floor(diffMs / 3600000);
+            const days  = Math.floor(diffMs / 86400000);
+            if (mins < 1)    return 'just now';
+            if (mins < 60)   return `${mins}m ago`;
+            if (hours < 24)  return `${hours}h ago`;
+            return `${days}d ago`;
+        }
+
         async function checkAshbyStatus() {
             try {
                 const response = await fetch('/api/ashby/status');
@@ -1843,11 +1861,12 @@
                 if (data.configured && data.path) {
                     pathInput.value = data.path;
                     if (data.exists) {
-                        const modDate = new Date(data.modified_at).toLocaleDateString();
+                        const age = timeAgo(data.modified_at);
+                        const fullDate = new Date(data.modified_at).toLocaleString();
                         const filename = data.resolved_file
                             ? data.resolved_file.split('/').pop()
                             : '';
-                        progressEl.textContent = `Ready — ${filename} (${modDate})`;
+                        progressEl.innerHTML = `File on disk: <strong title="${fullDate}">${age}</strong> — ${filename}`;
                     } else {
                         progressEl.textContent = 'Configured path not found on disk.';
                     }
@@ -1883,7 +1902,9 @@
                 const result = await response.json();
 
                 if (result.ok) {
-                    progressEl.textContent = `✓ Imported ${result.imported} Ashby candidates (${result.total} total)`;
+                    const fileAge = result.file_modified_at ? timeAgo(result.file_modified_at) : '?';
+                    const fullDate = result.file_modified_at ? new Date(result.file_modified_at).toLocaleString() : '';
+                    progressEl.innerHTML = `✓ Imported ${result.imported} candidates — file was <strong title="${fullDate}">${fileAge}</strong>`;
                     progressEl.className = 'ashby-progress';
                     btn.disabled = false;
                     // Reload the table to show the new data

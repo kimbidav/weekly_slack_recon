@@ -566,6 +566,10 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
                 f"[ASHBY] Imported {len(ashby_candidates)} candidates from {ashby_path}"
             )
 
+            file_modified_at = datetime.fromtimestamp(
+                Path(ashby_path).stat().st_mtime, tz=timezone.utc
+            ).isoformat()
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -573,6 +577,8 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "ok": True,
                 "imported": len(ashby_candidates),
                 "total": len(merged),
+                "file_modified_at": file_modified_at,
+                "resolved_file": ashby_path,
             }).encode())
 
         except FileNotFoundError as e:
