@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slack Pipeline Reconciliation Dashboard</title>
+    <title>Pipeline Reconciliation Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -1058,19 +1058,142 @@
         .mention-option-name {
             font-weight: 500;
         }
+
+        /* Source badges */
+        .source-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        .source-badge-ashby {
+            background: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffcc80;
+        }
+
+        .source-badge-crosslink {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+            cursor: default;
+        }
+
+        /* Ashby row tinting */
+        tr.ashby-row {
+            background: #fffaf5;
+        }
+
+        tr.ashby-row:hover {
+            background: #fff3e0 !important;
+        }
+
+        /* Pipeline stage info */
+        .stage-info {
+            color: #555;
+        }
+
+        a.stage-info {
+            color: #4a90e2;
+        }
+
+        .stage-progress {
+            color: #aaa;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+
+        /* Ashby import section */
+        .ashby-import-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .ashby-btn {
+            padding: 12px 24px;
+            background: #e65100;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .ashby-btn:hover:not(:disabled) {
+            background: #bf360c;
+        }
+
+        .ashby-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .ashby-progress {
+            font-size: 12px;
+            color: #666;
+            min-height: 16px;
+        }
+
+        .ashby-progress.active {
+            color: #e65100;
+        }
+
+        /* Ashby path input row */
+        .ashby-path-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ashby-path-input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 280px;
+            color: #333;
+        }
+
+        .ashby-path-input:focus {
+            outline: none;
+            border-color: #e65100;
+            box-shadow: 0 0 0 3px rgba(230, 81, 0, 0.1);
+        }
+
+        /* Stat card for Ashby */
+        .stat-value.ashby-count { color: #e65100; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-content">
-                <h1>Weekly Slack Pipeline Reconciliation</h1>
+                <h1>Pipeline Reconciliation Dashboard</h1>
                 <div class="subtitle" id="generated-at">Loading...</div>
             </div>
             <div class="header-buttons">
                 <div class="button-group">
-                    <button class="generate-btn" id="generate-btn" onclick="generateData()">Generate Data</button>
+                    <button class="generate-btn" id="generate-btn" onclick="generateData()">Sync Slack</button>
                     <div class="progress-indicator" id="progress-indicator"></div>
+                </div>
+                <div class="ashby-import-section">
+                    <div class="ashby-path-row">
+                        <input type="text" class="ashby-path-input" id="ashby-path-input"
+                            placeholder="Path to Ashby output folder…"
+                            title="Folder path: picks the latest .json automatically. Or paste a specific file path.">
+                        <button class="ashby-btn" id="ashby-btn" onclick="importFromAshby()">Import Ashby</button>
+                    </div>
+                    <div class="ashby-progress" id="ashby-progress"></div>
                 </div>
                 <div class="button-group">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -1105,6 +1228,10 @@
             <div class="stat-card">
                 <div class="stat-label">Needs Follow-up</div>
                 <div class="stat-value followup" id="stat-followup">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Ashby</div>
+                <div class="stat-value ashby-count" id="stat-ashby">0</div>
             </div>
         </div>
 
@@ -1145,9 +1272,17 @@
                     <option value="">All Channels</option>
                 </select>
             </div>
+            <div class="filter-group">
+                <label>Source</label>
+                <select id="filter-source">
+                    <option value="">All Sources</option>
+                    <option value="slack">Slack only</option>
+                    <option value="ashby">Ashby only</option>
+                </select>
+            </div>
             <div class="filter-group search-box">
                 <label>Search Candidate</label>
-                <input type="text" id="search" placeholder="Search by candidate name...">
+                <input type="text" id="search" placeholder="Search by name, company, or job…">
             </div>
         </div>
 
@@ -1160,12 +1295,12 @@
                     <tr>
                         <th class="col-select"></th>
                         <th class="sortable" data-sort="candidate_name">Candidate</th>
-                        <th class="sortable" data-sort="channel_name">Channel</th>
+                        <th class="sortable" data-sort="channel_name">Channel / Company</th>
                         <th class="sortable" data-sort="status">Status</th>
                         <th>AI Summary</th>
-                        <th class="sortable" data-sort="days_since_submission">Days Since Submission</th>
+                        <th class="sortable" data-sort="days_since_submission">Days</th>
                         <th>LinkedIn</th>
-                        <th>Slack</th>
+                        <th>Stage / Thread</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
@@ -1236,6 +1371,9 @@
         let selectedSet = new Set(); // tracks selected submission keys
 
         function submissionKey(s) {
+            if ((s.source || 'slack') === 'ashby') {
+                return `ashby::${s.ashby_application_id || s.candidate_name}::${s.submitted_at}`;
+            }
             return `${s.channel_id}::${s.candidate_name}::${s.submitted_at}`;
         }
 
@@ -1268,7 +1406,11 @@
                         `Generated: ${date.toLocaleString()}`;
                 }
                 
-                allData = data.submissions || [];
+                // Backfill source field for older records that predate this feature
+                allData = (data.submissions || []).map(s => ({
+                    source: 'slack',
+                    ...s,
+                }));
                 initializeFilters();
                 updateStats();
                 applyFilters();
@@ -1282,7 +1424,10 @@
         function initializeFilters() {
             const channelSelect = document.getElementById('filter-channel');
             const currentValue = channelSelect.value; // preserve selection
-            const channels = [...new Set(allData.map(s => s.channel_name))].sort();
+            // Only show channels from Slack candidates (Ashby candidates have no channel)
+            const channels = [...new Set(
+                allData.filter(s => s.channel_name).map(s => s.channel_name)
+            )].sort();
 
             // Clear existing options (keep the "All Channels" option)
             while (channelSelect.options.length > 1) {
@@ -1292,7 +1437,7 @@
             channels.forEach(channel => {
                 const option = document.createElement('option');
                 option.value = channel;
-                option.textContent = channel;
+                option.textContent = formatChannelName(channel);
                 channelSelect.appendChild(option);
             });
 
@@ -1306,12 +1451,14 @@
             const explicit = allData.filter(s => s.status === 'IN PROCESS — explicit').length;
             const unclear = allData.filter(s => s.status === 'IN PROCESS — unclear').length;
             const followup = allData.filter(s => s.needs_followup).length;
+            const ashbyCount = allData.filter(s => s.source === 'ashby').length;
 
             document.getElementById('stat-total').textContent = total;
             document.getElementById('stat-closed').textContent = closed;
             document.getElementById('stat-explicit').textContent = explicit;
             document.getElementById('stat-unclear').textContent = unclear;
             document.getElementById('stat-followup').textContent = followup;
+            document.getElementById('stat-ashby').textContent = ashbyCount;
         }
 
         function getSelectedStatuses() {
@@ -1330,12 +1477,22 @@
         function applyFilters() {
             const selectedStatuses = getSelectedStatuses();
             const channelFilter = document.getElementById('filter-channel').value;
+            const sourceFilter = document.getElementById('filter-source').value;
             const searchTerm = document.getElementById('search').value.toLowerCase();
 
             filteredData = allData.filter(submission => {
                 if (selectedStatuses.length > 0 && !selectedStatuses.includes(submission.status)) return false;
                 if (channelFilter && submission.channel_name !== channelFilter) return false;
-                if (searchTerm && !submission.candidate_name.toLowerCase().includes(searchTerm)) return false;
+                if (sourceFilter && (submission.source || 'slack') !== sourceFilter) return false;
+                if (searchTerm) {
+                    const haystack = [
+                        submission.candidate_name,
+                        submission.channel_name,
+                        submission.company_name,
+                        submission.job_title,
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    if (!haystack.includes(searchTerm)) return false;
+                }
                 return true;
             });
 
@@ -1378,33 +1535,87 @@
             filteredData.forEach((submission, idx) => {
                 try {
                     const row = document.createElement('tr');
+                    const isAshby = (submission.source || 'slack') === 'ashby';
+                    if (isAshby) row.classList.add('ashby-row');
+
                     const key = submissionKey(submission);
-                    const isActive = submission.status !== 'CLOSED';
+                    // Only Slack candidates that are active can receive follow-up messages
+                    const canSelect = !isAshby && submission.status !== 'CLOSED';
                     const isChecked = selectedSet.has(key);
-                    
+
                     const statusClass = submission.status === 'CLOSED' ? 'status-closed' :
                                        submission.status === 'IN PROCESS — explicit' ? 'status-explicit' :
                                        'status-unclear';
-                    
-                    const statusDisplay = submission.status === 'IN PROCESS — explicit' ? 
-                        'IN PROCESS — explicit' : submission.status;
 
                     const aiCell = renderAiStatusCell(submission);
 
+                    // ── Candidate cell ─────────────────────────────────────
+                    let candidateHtml = `<strong>${escapeHtml(submission.candidate_name)}</strong>`;
+                    if (isAshby) {
+                        candidateHtml += `<span class="source-badge source-badge-ashby" title="From Ashby ATS">Ashby</span>`;
+                    }
+                    if (submission.also_in_ashby) {
+                        candidateHtml += `<span class="source-badge source-badge-crosslink" title="Also found in Ashby">+Ashby</span>`;
+                    }
+                    if (submission.also_in_slack) {
+                        candidateHtml += `<span class="source-badge source-badge-crosslink" title="Also found in Slack">+Slack</span>`;
+                    }
+
+                    // ── Channel / Company cell ──────────────────────────────
+                    let sourceCell;
+                    if (isAshby) {
+                        sourceCell = submission.company_name
+                            ? escapeHtml(submission.company_name)
+                            : '<span style="color:#aaa;">—</span>';
+                    } else {
+                        sourceCell = submission.channel_name
+                            ? escapeHtml(formatChannelName(submission.channel_name))
+                            : '<span style="color:#aaa;">—</span>';
+                    }
+
+                    // ── Stage / Thread cell ────────────────────────────────
+                    let actionCell;
+                    if (isAshby) {
+                        const ashbyUrl = submission.ashby_candidate_id
+                            ? `https://app.ashbyhq.com/candidates/${submission.ashby_candidate_id}`
+                            : null;
+                        if (submission.pipeline_stage) {
+                            const progress = submission.stage_progress
+                                ? `<span class="stage-progress">(${escapeHtml(submission.stage_progress)})</span>`
+                                : '';
+                            const stageText = `${escapeHtml(submission.pipeline_stage)}${progress ? ' ' + progress : ''}`;
+                            actionCell = ashbyUrl
+                                ? `<a href="${escapeHtml(ashbyUrl)}" target="_blank" class="stage-info">${stageText}</a>`
+                                : `<span class="stage-info">${stageText}</span>`;
+                        } else {
+                            actionCell = ashbyUrl
+                                ? `<a href="${escapeHtml(ashbyUrl)}" target="_blank" style="color:#aaa;">View in Ashby</a>`
+                                : '<span style="color:#aaa;">—</span>';
+                        }
+                    } else {
+                        actionCell = submission.slack_url
+                            ? `<a href="#" onclick="openThreadPanel('${escapeAttr(submission.channel_id)}', '${escapeAttr(submission.slack_url)}', '${escapeAttr(submission.candidate_name)}', '${escapeAttr(submission.channel_name || '')}'); return false;">View Thread</a>`
+                            : '—';
+                    }
+
+                    // ── Days cell ──────────────────────────────────────────
+                    const daysVal = submission.days_since_submission ?? submission.days_in_stage ?? '?';
+                    const daysTitle = isAshby ? 'days in current stage' : 'days since submission';
+
                     row.innerHTML = `
                         <td class="col-select">
-                            ${isActive ? `<input type="checkbox" data-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} onchange="toggleSelection(this)">` : ''}
+                            ${canSelect ? `<input type="checkbox" data-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} onchange="toggleSelection(this)">` : ''}
                         </td>
-                        <td><strong>${escapeHtml(submission.candidate_name)}</strong></td>
-                        <td>${escapeHtml(submission.channel_name)}</td>
+                        <td>${candidateHtml}</td>
+                        <td>${sourceCell}</td>
                         <td>
-                            <span class="status-badge ${statusClass}">${statusDisplay}</span>
+                            <span class="status-badge ${statusClass}">${escapeHtml(submission.status)}</span>
                             ${submission.needs_followup ? '<span class="status-badge followup-badge">Follow-up</span>' : ''}
                         </td>
                         <td class="ai-status-cell">${aiCell}</td>
-                        <td><span class="days-old">${submission.days_since_submission} days</span></td>
-                        <td><a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a></td>
-                        <td>${submission.slack_url ? `<a href="#" onclick="openThreadPanel('${escapeAttr(submission.channel_id)}', '${escapeAttr(submission.slack_url)}', '${escapeAttr(submission.candidate_name)}', '${escapeAttr(submission.channel_name)}'); return false;">View Thread</a>` : '—'}</td>
+                        <td><span class="days-old" title="${daysTitle}">${daysVal}d</span></td>
+                        <td>${submission.linkedin_url ? `<a href="${escapeHtml(submission.linkedin_url)}" target="_blank">View Profile</a>` : '<span style="color:#aaa;">—</span>'}</td>
+                        <td>${actionCell}</td>
                     `;
                     tbody.appendChild(row);
                 } catch (err) {
@@ -1425,6 +1636,13 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function formatChannelName(channelName) {
+            if (!channelName) return '';
+            // Strip leading # and common 'candidatelabs-' prefix, then title-case
+            const name = channelName.replace(/^#?candidatelabs-/i, '');
+            return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
 
         // Multi-select status filter logic
@@ -1506,8 +1724,78 @@
             }
         })();
 
+        // --- Ashby Import ---
+
+        async function checkAshbyStatus() {
+            try {
+                const response = await fetch('/api/ashby/status');
+                const data = await response.json();
+                const pathInput = document.getElementById('ashby-path-input');
+                const progressEl = document.getElementById('ashby-progress');
+
+                if (data.configured && data.path) {
+                    pathInput.value = data.path;
+                    if (data.exists) {
+                        const modDate = new Date(data.modified_at).toLocaleDateString();
+                        const filename = data.resolved_file
+                            ? data.resolved_file.split('/').pop()
+                            : '';
+                        progressEl.textContent = `Ready — ${filename} (${modDate})`;
+                    } else {
+                        progressEl.textContent = 'Configured path not found on disk.';
+                    }
+                }
+            } catch (err) {
+                // Non-fatal: silently ignore
+            }
+        }
+
+        async function importFromAshby() {
+            const btn = document.getElementById('ashby-btn');
+            const progressEl = document.getElementById('ashby-progress');
+            const pathInput = document.getElementById('ashby-path-input');
+
+            let filePath = pathInput.value.trim();
+            if (!filePath) {
+                progressEl.textContent = 'Enter the path to your Ashby JSON export above.';
+                progressEl.className = 'ashby-progress';
+                pathInput.focus();
+                return;
+            }
+
+            btn.disabled = true;
+            progressEl.innerHTML = '<span class="progress-spinner"></span>Importing from Ashby…';
+            progressEl.className = 'ashby-progress active';
+
+            try {
+                const response = await fetch('/api/ashby/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: filePath }),
+                });
+                const result = await response.json();
+
+                if (result.ok) {
+                    progressEl.textContent = `✓ Imported ${result.imported} Ashby candidates (${result.total} total)`;
+                    progressEl.className = 'ashby-progress';
+                    btn.disabled = false;
+                    // Reload the table to show the new data
+                    await loadData();
+                } else {
+                    progressEl.textContent = `✗ ${result.error}`;
+                    progressEl.className = 'ashby-progress';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                progressEl.textContent = `✗ ${err.message}`;
+                progressEl.className = 'ashby-progress';
+                btn.disabled = false;
+            }
+        }
+
         // Event listeners
         document.getElementById('filter-channel').addEventListener('change', applyFilters);
+        document.getElementById('filter-source').addEventListener('change', applyFilters);
         document.getElementById('search').addEventListener('input', applyFilters);
 
         document.querySelectorAll('th.sortable').forEach(th => {
@@ -2362,8 +2650,9 @@
         // Initialize mention autocomplete
         setupMentionAutocomplete();
 
-        // Load data on page load
+        // Load data and check Ashby config on page load
         loadData();
+        checkAshbyStatus();
     </script>
 </body>
 </html>

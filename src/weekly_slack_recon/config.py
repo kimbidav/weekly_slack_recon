@@ -27,6 +27,8 @@ class Config:
     anthropic_api_key: Optional[str] = None  # Anthropic API key for Claude
     enrichment_model: str = "claude-sonnet-4-20250514"  # Claude model to use
     enrichment_max_tokens: int = 500  # Max tokens per candidate summary
+    # Ashby integration
+    ashby_json_path: Optional[str] = None  # Path to Ashby JSON export file
 
     @property
     def lookback_timedelta(self) -> timedelta:
@@ -84,6 +86,9 @@ def load_config() -> Config:
     enrichment_model = os.getenv("ENRICHMENT_MODEL", "claude-sonnet-4-20250514")
     enrichment_max_tokens = _int_env("ENRICHMENT_MAX_TOKENS", 500)
 
+    # Ashby integration
+    ashby_json_path = os.getenv("ASHBY_JSON_PATH") or None
+
     return Config(
         slack_bot_token=slack_bot_token,
         dk_email=dk_email,
@@ -100,4 +105,5 @@ def load_config() -> Config:
         anthropic_api_key=anthropic_api_key,
         enrichment_model=enrichment_model,
         enrichment_max_tokens=enrichment_max_tokens,
+        ashby_json_path=ashby_json_path,
     )

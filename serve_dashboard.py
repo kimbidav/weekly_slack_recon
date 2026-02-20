@@ -23,6 +23,7 @@ from weekly_slack_recon.slack_client import SlackAPI
 from weekly_slack_recon.logic import build_candidate_submissions, CandidateSubmission
 from weekly_slack_recon.reporting import write_markdown, write_json
 from weekly_slack_recon.enrichment import enrich_submissions
+from weekly_slack_recon.ashby_importer import load_ashby_export, merge_ashby_into_submissions, find_latest_ashby_export
 
 # Cached SlackAPI instance for follow-up sends
 _slack_instance: SlackAPI = None
@@ -85,6 +86,8 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_thread()
         elif parsed_path.path == '/api/channel-members':
             self.handle_api_channel_members()
+        elif parsed_path.path == '/api/ashby/status':
+            self.handle_api_ashby_status()
         else:
             # Serve static files
             super().do_GET()
@@ -102,6 +105,8 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_enrich()
         elif parsed_path.path == '/api/enrich/clear':
             self.handle_api_enrich_clear()
+        elif parsed_path.path == '/api/ashby/import':
+            self.handle_api_ashby_import()
         else:
             self.send_error(404)
     
@@ -460,6 +465,121 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+
+    def handle_api_ashby_status(self):
+        """Return info about the configured Ashby JSON export path."""
+        try:
+            cfg = load_config()
+            path_str = cfg.ashby_json_path
+            if path_str:
+                try:
+                    resolved = find_latest_ashby_export(path_str)
+                    p = Path(resolved)
+                    stat = p.stat()
+                    payload = {
+                        "configured": True,
+                        "exists": True,
+                        "path": path_str,
+                        "resolved_file": resolved,
+                        "modified_at": datetime.fromtimestamp(
+                            stat.st_mtime, tz=timezone.utc
+                        ).isoformat(),
+                        "size_bytes": stat.st_size,
+                    }
+                except FileNotFoundError:
+                    payload = {"configured": True, "exists": False, "path": path_str}
+            else:
+                payload = {"configured": False, "exists": False}
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(payload).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def handle_api_ashby_import(self):
+        """Import Ashby candidates from a JSON export and merge into submissions."""
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length).decode("utf-8")
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception:
+            payload = {}
+
+        # Path can come from the request body or fall back to config
+        ashby_path = (payload.get("path") or "").strip()
+        if not ashby_path:
+            try:
+                cfg = load_config()
+                ashby_path = cfg.ashby_json_path or ""
+            except Exception:
+                ashby_path = ""
+
+        if not ashby_path:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "error": (
+                    "No Ashby JSON path provided. "
+                    "Set ASHBY_JSON_PATH in .env or pass 'path' in the request body."
+                )
+            }).encode())
+            return
+
+        try:
+            ashby_path = find_latest_ashby_export(ashby_path)
+            ashby_candidates = load_ashby_export(ashby_path)
+
+            json_path = DIRECTORY / "weekly_slack_reconciliation.json"
+            if json_path.exists():
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = {
+                    "submissions": [],
+                    "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+                }
+
+            existing = data.get("submissions", [])
+            merged = merge_ashby_into_submissions(existing, ashby_candidates)
+
+            data["submissions"] = merged
+            data["ashby_imported_at"] = datetime.now(tz=timezone.utc).isoformat()
+            data["ashby_candidate_count"] = len(ashby_candidates)
+
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            print(
+                f"[ASHBY] Imported {len(ashby_candidates)} candidates from {ashby_path}"
+            )
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "imported": len(ashby_candidates),
+                "total": len(merged),
+            }).encode())
+
+        except FileNotFoundError as e:
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+        except Exception as e:
+            traceback.print_exc()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
