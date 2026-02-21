@@ -46,7 +46,7 @@ Also requires **Node.js** and the Ashby Automation tool at `~/Desktop/Ashby auto
 SLACK_BOT_TOKEN=xoxp-...
 
 # DK's email (used to look up Slack user ID)
-DK_EMAIL=dkimball@candidatelabs.com
+DK_EMAIL=
 
 # How far back to scan Slack for submissions
 LOOKBACK_DAYS=45
@@ -56,10 +56,10 @@ UNCLEAR_FOLLOWUP_DAYS=7
 INACTIVITY_DAYS=5
 
 # Anthropic API key for AI enrichment + Check-Ins
-ANTHROPIC_API_KEY=sk-ant-api03-...
+ANTHROPIC_API_KEY=
 
 # Path to Ashby JSON export directory
-ASHBY_JSON_PATH=/Users/david/Desktop/Ashby automation/output
+ASHBY_JSON_PATH=
 
 # Pipeline Status Check (Check-Ins tab)
 GMAIL_CREDENTIALS_PATH=./credentials.json   # Google OAuth credentials
