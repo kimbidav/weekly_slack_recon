@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
+import json
 import os
 from typing import Optional
 
@@ -29,6 +30,14 @@ class Config:
     enrichment_max_tokens: int = 500  # Max tokens per candidate summary
     # Ashby integration
     ashby_json_path: Optional[str] = None  # Path to Ashby JSON export file
+    # Pipeline Status Check settings
+    gmail_credentials_path: str = "./credentials.json"
+    gmail_token_path: str = "./gmail_token.json"
+    gcal_token_path: str = "./gcal_token.json"
+    gcal_lookback_days: int = 7
+    gcal_lookahead_days: int = 14
+    status_check_model: str = "claude-sonnet-4-6"
+    client_contact_map: dict = field(default_factory=dict)  # {"Agave": "Akshay", "Charta Health": "Alex"}
 
     @property
     def lookback_timedelta(self) -> timedelta:
@@ -89,6 +98,19 @@ def load_config() -> Config:
     # Ashby integration
     ashby_json_path = os.getenv("ASHBY_JSON_PATH") or None
 
+    # Pipeline Status Check settings
+    gmail_credentials_path = os.getenv("GMAIL_CREDENTIALS_PATH", "./credentials.json")
+    gmail_token_path = os.getenv("GMAIL_TOKEN_PATH", "./gmail_token.json")
+    gcal_token_path = os.getenv("GCAL_TOKEN_PATH", "./gcal_token.json")
+    gcal_lookback_days = _int_env("GCAL_LOOKBACK_DAYS", 7)
+    gcal_lookahead_days = _int_env("GCAL_LOOKAHEAD_DAYS", 14)
+    status_check_model = os.getenv("STATUS_CHECK_MODEL", "claude-sonnet-4-6")
+    client_contact_map_raw = os.getenv("CLIENT_CONTACT_MAP", "{}")
+    try:
+        client_contact_map = json.loads(client_contact_map_raw)
+    except Exception:
+        client_contact_map = {}
+
     return Config(
         slack_bot_token=slack_bot_token,
         dk_email=dk_email,
@@ -106,4 +128,11 @@ def load_config() -> Config:
         enrichment_model=enrichment_model,
         enrichment_max_tokens=enrichment_max_tokens,
         ashby_json_path=ashby_json_path,
+        gmail_credentials_path=gmail_credentials_path,
+        gmail_token_path=gmail_token_path,
+        gcal_token_path=gcal_token_path,
+        gcal_lookback_days=gcal_lookback_days,
+        gcal_lookahead_days=gcal_lookahead_days,
+        status_check_model=status_check_model,
+        client_contact_map=client_contact_map,
     )

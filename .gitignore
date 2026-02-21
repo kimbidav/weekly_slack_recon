@@ -38,3 +38,19 @@ build/
 # Nudge tracker and logs (runtime state)
 .nudge_tracker.json
 nudge.log
+
+# Google OAuth credentials and cached tokens (secrets)
+credentials.json
+gmail_token.json
+gcal_token.json
+
+# Generated data files (runtime state)
+weekly_slack_reconciliation.json
+weekly_slack_reconciliation.md
+status_check_log.json
+
+# Claude internal
+.claude/
+
+# Output files
+output/

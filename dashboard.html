@@ -1249,6 +1249,216 @@
 
         /* Stat card for Ashby */
         .stat-value.ashby-count { color: #e65100; }
+
+        /* ── Tab navigation ────────────────────────────────────────────────── */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .tab-btn {
+            padding: 10px 22px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .tab-btn:hover { color: #4a90e2; }
+        .tab-btn.active {
+            color: #4a90e2;
+            border-bottom-color: #4a90e2;
+        }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── Check-In tab styles ────────────────────────────────────────────── */
+        .checkin-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .checkin-btn {
+            padding: 10px 22px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .checkin-btn:hover:not(:disabled) { background: #357abd; }
+        .checkin-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .checkin-btn.green { background: #2ca02c; }
+        .checkin-btn.green:hover:not(:disabled) { background: #248a24; }
+        .checkin-progress {
+            font-size: 13px;
+            color: #666;
+        }
+        .checkin-progress.active { color: #4a90e2; }
+        .checkin-progress-bar-wrap {
+            width: 200px;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        .checkin-progress-bar {
+            height: 100%;
+            background: #4a90e2;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .draft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+            gap: 20px;
+        }
+        .draft-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .draft-card.skipped { opacity: 0.45; }
+        .draft-card.approved { border: 2px solid #2ca02c; }
+        .draft-card-header {
+            background: #f8f9fa;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .draft-client-name {
+            font-weight: 700;
+            font-size: 15px;
+            color: #1a1a1a;
+        }
+        .draft-channel-tag {
+            font-size: 11px;
+            color: #888;
+            background: #e9ecef;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+        .draft-card-body { padding: 16px 18px; }
+        .draft-message-textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            line-height: 1.55;
+            resize: vertical;
+            color: #333;
+        }
+        .draft-message-textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+        .draft-candidates {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #555;
+        }
+        .draft-candidates summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a90e2;
+            margin-bottom: 6px;
+        }
+        .draft-candidate-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 5px 0;
+            border-top: 1px solid #f0f0f0;
+        }
+        .draft-candidate-row .candidate-name {
+            font-weight: 600;
+            min-width: 130px;
+        }
+        .draft-candidate-row .candidate-oneliner {
+            flex: 1;
+            color: #555;
+        }
+        .source-badge {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 8px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .source-badge.calendar { background: #d4edda; color: #155724; }
+        .source-badge.gmail    { background: #fff3cd; color: #856404; }
+        .source-badge.slack    { background: #d1ecf1; color: #0c5460; }
+        .source-badge.ashby    { background: #f8d7da; color: #721c24; }
+        .source-badge.none     { background: #e9ecef; color: #6c757d; }
+        .flag-badge {
+            font-size: 10px;
+            background: #fff3cd;
+            color: #856404;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .draft-card-footer {
+            padding: 12px 18px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .draft-status-label {
+            font-size: 12px;
+            color: #888;
+            margin-right: auto;
+        }
+        .draft-status-label.sent { color: #2ca02c; font-weight: 600; }
+        .draft-approve-btn {
+            padding: 7px 16px;
+            background: #2ca02c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .draft-approve-btn:hover:not(:disabled) { background: #248a24; }
+        .draft-approve-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .draft-skip-btn {
+            padding: 7px 14px;
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #888;
+            cursor: pointer;
+        }
+        .draft-skip-btn:hover { border-color: #aaa; color: #555; }
+        .checkin-empty {
+            text-align: center;
+            color: #888;
+            padding: 60px 20px;
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
@@ -1264,13 +1474,10 @@
                     <div class="progress-indicator" id="progress-indicator"></div>
                 </div>
                 <div class="ashby-import-section">
-                    <div class="ashby-path-row">
-                        <input type="text" class="ashby-path-input" id="ashby-path-input"
-                            placeholder="Path to Ashby output folder…"
-                            title="Folder path: picks the latest .json automatically. Or paste a specific file path.">
-                        <button class="ashby-btn" id="ashby-btn" onclick="importFromAshby()">Import Ashby</button>
+                    <div class="button-group">
+                        <button class="ashby-btn" id="ashby-btn" onclick="syncAshby()">Sync Ashby</button>
+                        <div class="ashby-progress" id="ashby-progress"></div>
                     </div>
-                    <div class="ashby-progress" id="ashby-progress"></div>
                 </div>
                 <div class="button-group">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -1304,6 +1511,15 @@
             </div>
             <div class="ashby-auth-status" id="ashby-auth-status"></div>
         </div>
+
+        <!-- Tab navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" id="tab-btn-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
+            <button class="tab-btn" id="tab-btn-checkin" onclick="switchTab('checkin')">Check-Ins</button>
+        </div>
+
+        <!-- ── Pipeline tab ── -->
+        <div class="tab-pane active" id="tab-pipeline">
 
         <div class="stats" id="stats">
             <div class="stat-card">
@@ -1417,7 +1633,27 @@
                 <button class="send-all-btn" id="send-all-btn" onclick="sendAllFollowups()">Send All</button>
             </div>
         </div>
-    </div>
+
+        </div><!-- end tab-pane pipeline -->
+
+        <!-- ── Check-Ins tab ── -->
+        <div class="tab-pane" id="tab-checkin">
+            <div class="checkin-toolbar">
+                <button class="checkin-btn" id="checkin-generate-btn" onclick="generateCheckIns()">Generate Check-Ins</button>
+                <button class="checkin-btn green" id="checkin-approve-all-btn" onclick="approveAllDrafts()" style="display:none">Approve All &amp; Send</button>
+                <span class="checkin-progress" id="checkin-progress"></span>
+                <div class="checkin-progress-bar-wrap" id="checkin-bar-wrap">
+                    <div class="checkin-progress-bar" id="checkin-bar"></div>
+                </div>
+            </div>
+            <div class="draft-grid" id="draft-grid">
+                <div class="checkin-empty" id="checkin-empty">
+                    Click <strong>Generate Check-Ins</strong> to draft client messages.
+                </div>
+            </div>
+        </div><!-- end tab-pane checkin -->
+
+    </div><!-- end container -->
 
     <!-- Sticky bottom bar -->
     <div class="followup-bar" id="followup-bar">
@@ -1855,69 +2091,77 @@
             try {
                 const response = await fetch('/api/ashby/status');
                 const data = await response.json();
-                const pathInput = document.getElementById('ashby-path-input');
                 const progressEl = document.getElementById('ashby-progress');
-
-                if (data.configured && data.path) {
-                    pathInput.value = data.path;
-                    if (data.exists) {
-                        const age = timeAgo(data.modified_at);
-                        const fullDate = new Date(data.modified_at).toLocaleString();
-                        const filename = data.resolved_file
-                            ? data.resolved_file.split('/').pop()
-                            : '';
-                        progressEl.innerHTML = `File on disk: <strong title="${fullDate}">${age}</strong> — ${filename}`;
-                    } else {
-                        progressEl.textContent = 'Configured path not found on disk.';
-                    }
+                if (data.configured && data.exists && data.modified_at) {
+                    const age = timeAgo(data.modified_at);
+                    const fullDate = new Date(data.modified_at).toLocaleString();
+                    progressEl.innerHTML = `Last synced: <strong title="${fullDate}">${age}</strong>`;
                 }
             } catch (err) {
-                // Non-fatal: silently ignore
+                // Non-fatal
             }
         }
 
-        async function importFromAshby() {
+        let ashbySyncPoll = null;
+
+        async function syncAshby() {
             const btn = document.getElementById('ashby-btn');
             const progressEl = document.getElementById('ashby-progress');
-            const pathInput = document.getElementById('ashby-path-input');
-
-            let filePath = pathInput.value.trim();
-            if (!filePath) {
-                progressEl.textContent = 'Enter the path to your Ashby JSON export above.';
-                progressEl.className = 'ashby-progress';
-                pathInput.focus();
-                return;
-            }
 
             btn.disabled = true;
-            progressEl.innerHTML = '<span class="progress-spinner"></span>Importing from Ashby…';
+            progressEl.innerHTML = '<span class="progress-spinner"></span> Starting extraction…';
             progressEl.className = 'ashby-progress active';
 
             try {
-                const response = await fetch('/api/ashby/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: filePath }),
-                });
-                const result = await response.json();
-
-                if (result.ok) {
-                    const fileAge = result.file_modified_at ? timeAgo(result.file_modified_at) : '?';
-                    const fullDate = result.file_modified_at ? new Date(result.file_modified_at).toLocaleString() : '';
-                    progressEl.innerHTML = `✓ Imported ${result.imported} candidates — file was <strong title="${fullDate}">${fileAge}</strong>`;
-                    progressEl.className = 'ashby-progress';
-                    btn.disabled = false;
-                    // Reload the table to show the new data
-                    await loadData();
-                } else {
-                    progressEl.textContent = `✗ ${result.error}`;
-                    progressEl.className = 'ashby-progress';
-                    btn.disabled = false;
+                const resp = await fetch('/api/ashby/sync', { method: 'POST' });
+                if (!resp.ok && resp.status !== 202) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Failed to start');
                 }
+                ashbySyncPoll = setInterval(pollAshbySync, 2000);
             } catch (err) {
                 progressEl.textContent = `✗ ${err.message}`;
                 progressEl.className = 'ashby-progress';
                 btn.disabled = false;
+            }
+        }
+
+        async function pollAshbySync() {
+            try {
+                const resp = await fetch('/api/ashby/sync/status');
+                const data = await resp.json();
+                const btn = document.getElementById('ashby-btn');
+                const progressEl = document.getElementById('ashby-progress');
+
+                progressEl.innerHTML = `<span class="progress-spinner"></span> ${data.detail}`;
+
+                if (data.auth_required) {
+                    clearInterval(ashbySyncPoll);
+                    progressEl.textContent = '🔒 Session expired';
+                    progressEl.className = 'ashby-progress';
+                    btn.disabled = false;
+                    document.getElementById('ashby-auth-banner').style.display = 'block';
+                    document.getElementById('ashby-auth-banner').scrollIntoView({ behavior: 'smooth' });
+                    return;
+                }
+
+                if (data.error) {
+                    clearInterval(ashbySyncPoll);
+                    progressEl.textContent = `✗ ${data.error}`;
+                    progressEl.className = 'ashby-progress';
+                    btn.disabled = false;
+                    return;
+                }
+
+                if (data.completed) {
+                    clearInterval(ashbySyncPoll);
+                    progressEl.textContent = `✓ ${data.detail}`;
+                    progressEl.className = 'ashby-progress';
+                    btn.disabled = false;
+                    await loadData();
+                }
+            } catch (err) {
+                // Ignore transient errors
             }
         }
 
@@ -2832,6 +3076,249 @@
         // Load existing data and check Ashby config on page load
         loadData();
         checkAshbyStatus();
+
+        // ── Tab switching ────────────────────────────────────────────────────
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-btn-' + name).classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
+        }
+
+        // ── Check-In pipeline ────────────────────────────────────────────────
+        let checkinPollInterval = null;
+
+        async function generateCheckIns() {
+            const btn = document.getElementById('checkin-generate-btn');
+            const progress = document.getElementById('checkin-progress');
+            const barWrap = document.getElementById('checkin-bar-wrap');
+            const bar = document.getElementById('checkin-bar');
+
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            progress.textContent = 'Starting pipeline...';
+            progress.className = 'checkin-progress active';
+            barWrap.style.display = 'block';
+            bar.style.width = '5%';
+
+            document.getElementById('draft-grid').innerHTML = '<div class="checkin-empty">Gathering context from Slack, Gmail, and Calendar...</div>';
+            document.getElementById('checkin-approve-all-btn').style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/status-check/generate', { method: 'POST' });
+                if (!resp.ok && resp.status !== 202) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Failed to start');
+                }
+                // Start polling
+                checkinPollInterval = setInterval(pollCheckinStatus, 1500);
+            } catch (err) {
+                progress.textContent = 'Error: ' + err.message;
+                progress.className = 'checkin-progress';
+                btn.disabled = false;
+                btn.textContent = 'Generate Check-Ins';
+            }
+        }
+
+        async function pollCheckinStatus() {
+            try {
+                const resp = await fetch('/api/status-check/status');
+                const data = await resp.json();
+
+                const progress = document.getElementById('checkin-progress');
+                const bar = document.getElementById('checkin-bar');
+                const btn = document.getElementById('checkin-generate-btn');
+
+                progress.textContent = data.detail || '';
+
+                // Update progress bar
+                if (data.total > 0) {
+                    const pct = Math.min(95, Math.round((data.current / data.total) * 90) + 5);
+                    bar.style.width = pct + '%';
+                }
+
+                if (data.error) {
+                    clearInterval(checkinPollInterval);
+                    progress.textContent = 'Error: ' + data.error;
+                    progress.className = 'checkin-progress';
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Check-Ins';
+                    return;
+                }
+
+                if (data.completed) {
+                    clearInterval(checkinPollInterval);
+                    bar.style.width = '100%';
+                    progress.className = 'checkin-progress';
+                    btn.disabled = false;
+                    btn.textContent = 'Re-Generate';
+                    // Fetch and render drafts
+                    await loadDrafts();
+                }
+            } catch (err) {
+                // Ignore transient fetch errors during polling
+            }
+        }
+
+        async function loadDrafts() {
+            const resp = await fetch('/api/status-check/drafts');
+            const data = await resp.json();
+            renderDrafts(data.drafts || []);
+        }
+
+        function renderDrafts(drafts) {
+            const grid = document.getElementById('draft-grid');
+            const approveAllBtn = document.getElementById('checkin-approve-all-btn');
+
+            if (!drafts || drafts.length === 0) {
+                grid.innerHTML = '<div class="checkin-empty">No active clients with candidates found.</div>';
+                approveAllBtn.style.display = 'none';
+                return;
+            }
+
+            approveAllBtn.style.display = '';
+            grid.innerHTML = '';
+
+            drafts.forEach(draft => {
+                const card = document.createElement('div');
+                card.className = 'draft-card' + (draft.status === 'skipped' ? ' skipped' : '') + (draft.status === 'approved' ? ' approved' : '');
+                card.id = 'draft-card-' + draft.draft_id;
+
+                const pendingCount = (draft.candidates || []).filter(c => !c.flag_for_review).length;
+                const flaggedCount = (draft.candidates || []).filter(c => c.flag_for_review).length;
+
+                const candidateRows = (draft.candidates || []).map(c => `
+                    <div class="draft-candidate-row">
+                        <span class="candidate-name">${escapeHtml(c.name)}</span>
+                        <span class="source-badge ${c.source}">${c.source}</span>
+                        <span class="candidate-oneliner">${escapeHtml(c.one_liner)}</span>
+                        ${c.flag_for_review ? '<span class="flag-badge">review</span>' : ''}
+                    </div>
+                `).join('');
+
+                const statusLabel = draft.status === 'approved'
+                    ? '<span class="draft-status-label sent">Sent!</span>'
+                    : draft.status === 'skipped'
+                    ? '<span class="draft-status-label">Skipped</span>'
+                    : '<span class="draft-status-label"></span>';
+
+                card.innerHTML = `
+                    <div class="draft-card-header">
+                        <span class="draft-client-name">${escapeHtml(draft.client_name)}</span>
+                        <span class="draft-channel-tag">#${escapeHtml(draft.channel_name)}</span>
+                    </div>
+                    <div class="draft-card-body">
+                        <textarea class="draft-message-textarea" id="msg-${draft.draft_id}"
+                            onchange="saveDraftEdit('${draft.draft_id}', this.value)"
+                            ${draft.status === 'approved' ? 'readonly' : ''}
+                        >${escapeHtml(draft.message_text)}</textarea>
+                        <details class="draft-candidates">
+                            <summary>${pendingCount} candidate${pendingCount !== 1 ? 's' : ''}${flaggedCount ? ` · ${flaggedCount} flagged for review` : ''}</summary>
+                            ${candidateRows}
+                        </details>
+                    </div>
+                    <div class="draft-card-footer">
+                        ${statusLabel}
+                        ${draft.status !== 'approved' ? `
+                        <button class="draft-skip-btn" id="skip-${draft.draft_id}"
+                            onclick="toggleSkipDraft('${draft.draft_id}')"
+                            ${draft.status === 'skipped' ? 'style="border-color:#4a90e2;color:#4a90e2"' : ''}>
+                            ${draft.status === 'skipped' ? 'Undo Skip' : 'Skip'}
+                        </button>
+                        <button class="draft-approve-btn" id="approve-${draft.draft_id}"
+                            onclick="approveDraft('${draft.draft_id}')"
+                            ${draft.status === 'skipped' ? 'disabled' : ''}>
+                            Approve &amp; Send
+                        </button>` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function saveDraftEdit(draftId, newText) {
+            try {
+                await fetch('/api/status-check/drafts/' + draftId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message_text: newText }),
+                });
+            } catch (err) {
+                console.error('Failed to save draft edit:', err);
+            }
+        }
+
+        async function toggleSkipDraft(draftId) {
+            const card = document.getElementById('draft-card-' + draftId);
+            const isSkipped = card.classList.contains('skipped');
+            const newStatus = isSkipped ? 'pending' : 'skipped';
+            try {
+                await fetch('/api/status-check/drafts/' + draftId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                await loadDrafts();
+            } catch (err) {
+                console.error('Failed to update draft status:', err);
+            }
+        }
+
+        async function approveDraft(draftId) {
+            const btn = document.getElementById('approve-' + draftId);
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const resp = await fetch('/api/status-check/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ draft_ids: [draftId] }),
+                });
+                const result = await resp.json();
+                if (result.ok && result.sent.length > 0) {
+                    await loadDrafts();
+                } else {
+                    const errMsg = result.errors?.[0]?.error || 'Failed to send';
+                    btn.textContent = 'Error: ' + errMsg;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                btn.textContent = 'Error';
+                btn.disabled = false;
+            }
+        }
+
+        async function approveAllDrafts() {
+            const btn = document.getElementById('checkin-approve-all-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending all...';
+            try {
+                const resp = await fetch('/api/status-check/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ all: true }),
+                });
+                const result = await resp.json();
+                await loadDrafts();
+                btn.textContent = `Sent ${result.sent?.length || 0}!`;
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Approve All & Send';
+                }, 3000);
+            } catch (err) {
+                btn.textContent = 'Error';
+                btn.disabled = false;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
     </script>
 </body>
 </html>

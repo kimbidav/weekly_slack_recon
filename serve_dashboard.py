@@ -25,6 +25,8 @@ from weekly_slack_recon.logic import build_candidate_submissions, CandidateSubmi
 from weekly_slack_recon.reporting import write_markdown, write_json
 from weekly_slack_recon.enrichment import enrich_submissions
 from weekly_slack_recon.ashby_importer import load_ashby_export, merge_ashby_into_submissions, find_latest_ashby_export
+from weekly_slack_recon.status_check_runner import run_status_check
+from weekly_slack_recon.message_composer import DraftMessage
 
 # Cached SlackAPI instance for follow-up sends
 _slack_instance: SlackAPI = None
@@ -44,6 +46,28 @@ generation_status = {
     "completed": False,
     "ashby_auth_required": False,   # True when session cookie has expired
 }
+
+# Global state for Ashby sync (extraction + import)
+ashby_sync_status = {
+    "running": False,
+    "detail": "",
+    "error": None,
+    "completed": False,
+    "auth_required": False,
+    "imported": 0,
+}
+
+# Global state for Pipeline Status Check
+status_check_status = {
+    "running": False,
+    "phase": "",        # "scanning", "gathering", "composing", "complete"
+    "current": 0,
+    "total": 0,
+    "detail": "",
+    "error": None,
+    "completed": False,
+}
+_status_check_drafts: list = []  # List of DraftMessage dicts
 
 # Global state for enrichment progress
 enrichment_status = {
@@ -65,7 +89,7 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         # Add CORS headers
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         super().end_headers()
     
@@ -90,6 +114,12 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_channel_members()
         elif parsed_path.path == '/api/ashby/status':
             self.handle_api_ashby_status()
+        elif parsed_path.path == '/api/ashby/sync/status':
+            self.handle_api_ashby_sync_status()
+        elif parsed_path.path == '/api/status-check/status':
+            self.handle_api_status_check_status()
+        elif parsed_path.path == '/api/status-check/drafts':
+            self.handle_api_status_check_drafts()
         else:
             # Serve static files
             super().do_GET()
@@ -111,6 +141,19 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_ashby_import()
         elif parsed_path.path == '/api/ashby/set-cookie':
             self.handle_api_ashby_set_cookie()
+        elif parsed_path.path == '/api/ashby/sync':
+            self.handle_api_ashby_sync()
+        elif parsed_path.path == '/api/status-check/generate':
+            self.handle_api_status_check_generate()
+        elif parsed_path.path == '/api/status-check/approve':
+            self.handle_api_status_check_approve()
+        else:
+            self.send_error(404)
+
+    def do_PUT(self):
+        parsed_path = urlparse(self.path)
+        if parsed_path.path.startswith('/api/status-check/drafts/'):
+            self.handle_api_status_check_draft_update()
         else:
             self.send_error(404)
     
@@ -670,6 +713,297 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+
+    # ── Pipeline Status Check endpoints ──────────────────────────────────────
+
+    def handle_api_status_check_generate(self):
+        """Start the status-check pipeline in a background thread."""
+        global status_check_status, _status_check_drafts
+
+        if status_check_status["running"]:
+            self.send_response(409)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Status check already in progress"}).encode())
+            return
+
+        thread = threading.Thread(target=run_status_check_background, daemon=True)
+        thread.start()
+
+        self.send_response(202)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "started"}).encode())
+
+    def handle_api_status_check_status(self):
+        """Return current status-check pipeline progress."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(status_check_status).encode())
+
+    def handle_api_status_check_drafts(self):
+        """Return all drafted messages."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"drafts": _status_check_drafts}).encode())
+
+    def handle_api_status_check_draft_update(self):
+        """Update a draft's message_text or status (e.g. mark skipped)."""
+        global _status_check_drafts
+
+        parsed = urlparse(self.path)
+        draft_id = parsed.path.split('/')[-1]
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        for draft in _status_check_drafts:
+            if draft.get("draft_id") == draft_id:
+                if "message_text" in payload:
+                    draft["message_text"] = payload["message_text"]
+                if "status" in payload and payload["status"] in ("pending", "skipped"):
+                    draft["status"] = payload["status"]
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "draft": draft}).encode())
+                return
+
+        self.send_response(404)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "Draft not found"}).encode())
+
+    def handle_api_status_check_approve(self):
+        """Approve and post one or more draft messages to their Slack channels."""
+        global _slack_instance, _status_check_drafts
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+        try:
+            payload = json.loads(body) if body else {}
+        except Exception:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            return
+
+        approve_all = payload.get("all", False)
+        draft_ids = set(payload.get("draft_ids", []))
+
+        if _slack_instance is None:
+            cfg = load_config()
+            _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+        sent = []
+        errors = []
+
+        for draft in _status_check_drafts:
+            if draft.get("status") == "skipped":
+                continue
+            if not approve_all and draft.get("draft_id") not in draft_ids:
+                continue
+
+            try:
+                ts = _slack_instance.post_channel_message(
+                    draft["channel_id"], draft["message_text"]
+                )
+                draft["status"] = "approved"
+                draft["sent_ts"] = ts
+                sent.append({"draft_id": draft["draft_id"], "client_name": draft["client_name"], "ts": ts})
+
+                # Audit log
+                _append_status_check_log(draft)
+            except Exception as e:
+                errors.append({"draft_id": draft.get("draft_id"), "error": str(e)})
+
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"ok": True, "sent": sent, "errors": errors}).encode())
+
+
+    def handle_api_ashby_sync(self):
+        """Start Ashby extraction + import in a background thread."""
+        global ashby_sync_status
+
+        if ashby_sync_status["running"]:
+            self.send_response(409)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Sync already in progress"}).encode())
+            return
+
+        thread = threading.Thread(target=run_ashby_sync, daemon=True)
+        thread.start()
+
+        self.send_response(202)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "started"}).encode())
+
+    def handle_api_ashby_sync_status(self):
+        """Return current Ashby sync progress."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(ashby_sync_status).encode())
+
+
+def run_ashby_sync():
+    """Background thread: run Ashby extraction then import fresh data."""
+    global ashby_sync_status, generation_status
+
+    ashby_sync_status = {
+        "running": True,
+        "detail": "Starting Ashby sync...",
+        "error": None,
+        "completed": False,
+        "auth_required": False,
+        "imported": 0,
+    }
+
+    try:
+        cfg = load_config()
+        if not cfg.ashby_json_path:
+            ashby_sync_status["error"] = "ASHBY_JSON_PATH not set in .env"
+            return
+
+        # Step 1: Run extraction
+        ashby_sync_status["detail"] = "Running Ashby extraction (this takes ~1-2 min)..."
+        success = _run_ashby_extraction(cfg.ashby_json_path)
+
+        if not success:
+            ashby_sync_status["auth_required"] = True
+            ashby_sync_status["detail"] = "Session expired — paste a fresh Ashby cookie below."
+            generation_status["ashby_auth_required"] = True
+            return
+
+        # Step 2: Import fresh data
+        ashby_sync_status["detail"] = "Importing fresh candidates..."
+        ashby_file = find_latest_ashby_export(cfg.ashby_json_path)
+        ashby_candidates = load_ashby_export(ashby_file)
+
+        json_path = DIRECTORY / "weekly_slack_reconciliation.json"
+        if json_path.exists():
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"submissions": [], "generated_at": datetime.now(tz=timezone.utc).isoformat()}
+
+        data["submissions"] = merge_ashby_into_submissions(data.get("submissions", []), ashby_candidates)
+        data["ashby_imported_at"] = datetime.now(tz=timezone.utc).isoformat()
+        data["ashby_candidate_count"] = len(ashby_candidates)
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        ashby_sync_status["imported"] = len(ashby_candidates)
+        ashby_sync_status["detail"] = f"Done! Imported {len(ashby_candidates)} candidates."
+        ashby_sync_status["completed"] = True
+        generation_status["ashby_auth_required"] = False
+        print(f"[ASHBY SYNC] Imported {len(ashby_candidates)} candidates from {ashby_file}")
+
+    except Exception as e:
+        ashby_sync_status["error"] = str(e)
+        ashby_sync_status["detail"] = f"Error: {e}"
+        traceback.print_exc()
+    finally:
+        ashby_sync_status["running"] = False
+
+
+def _append_status_check_log(draft: dict):
+    """Append a sent message record to the audit log file."""
+    log_path = DIRECTORY / "status_check_log.json"
+    try:
+        if log_path.exists():
+            with open(log_path, "r", encoding="utf-8") as f:
+                log = json.load(f)
+        else:
+            log = {"entries": []}
+
+        log["entries"].append({
+            "sent_at": datetime.now(tz=timezone.utc).isoformat(),
+            "client_name": draft.get("client_name"),
+            "channel_id": draft.get("channel_id"),
+            "channel_name": draft.get("channel_name"),
+            "draft_id": draft.get("draft_id"),
+            "ts": draft.get("sent_ts"),
+        })
+
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[STATUS-CHECK] Audit log error: {e}")
+
+
+def run_status_check_background():
+    """Background thread: run the full status-check pipeline."""
+    global status_check_status, _status_check_drafts, _slack_instance
+
+    status_check_status = {
+        "running": True,
+        "phase": "starting",
+        "current": 0,
+        "total": 0,
+        "detail": "Initializing...",
+        "error": None,
+        "completed": False,
+    }
+
+    try:
+        cfg = load_config()
+        if _slack_instance is None:
+            _slack_instance = SlackAPI(token=cfg.slack_bot_token)
+
+        def progress(phase, current, total, detail):
+            status_check_status["phase"] = phase
+            status_check_status["current"] = current
+            status_check_status["total"] = total
+            status_check_status["detail"] = detail
+            print(f"[STATUS-CHECK] {phase} {current}/{total}: {detail}")
+
+        drafts = run_status_check(cfg, _slack_instance, progress_callback=progress)
+
+        # Convert DraftMessage dataclasses to plain dicts for JSON serialization
+        _status_check_drafts = [
+            {
+                "draft_id": d.draft_id,
+                "client_name": d.client_name,
+                "channel_id": d.channel_id,
+                "channel_name": d.channel_name,
+                "message_text": d.message_text,
+                "candidates": d.candidates,
+                "status": d.status,
+            }
+            for d in drafts
+        ]
+
+        status_check_status["phase"] = "complete"
+        status_check_status["completed"] = True
+        status_check_status["detail"] = f"Done! {len(drafts)} draft messages ready."
+
+    except Exception as e:
+        error_msg = str(e)
+        status_check_status["error"] = error_msg
+        status_check_status["detail"] = f"Error: {error_msg}"
+        print(f"[STATUS-CHECK ERROR] {error_msg}")
+        traceback.print_exc()
+
+    finally:
+        status_check_status["running"] = False
 
 
 ASHBY_AUTOMATION_DIR = Path.home() / "Desktop" / "Ashby automation"
