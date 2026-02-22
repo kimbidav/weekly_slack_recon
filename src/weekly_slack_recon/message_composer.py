@@ -30,13 +30,12 @@ Hey team! Quick check-in on my candidates:
 -- by Claude <3
 
 ONE-LINER RULES:
+- The one_liner field has already been reasoned from source data (Ashby, Gmail, Slack, Calendar).
+  Use it as the authoritative basis for each candidate's line — do not second-guess or soften it.
 - 1–2 sentences maximum per candidate
-- If a calendar event exists: lead with the event ("live coding with Akshay is set for 2/23")
-- If email shows advancement: reference the advancement concisely
-- If only Slack context: reference the last known decision point, ask for update
-- If status is ambiguous or no signal: ask an open question ("any update on where things stand?")
-- NEVER state uncertain information as fact — if you don't know, ask
+- You may lightly reword for flow and tone, but preserve all specific dates and facts
 - Do NOT include candidates flagged for review unless explicitly included
+- NEVER state uncertain information as fact — if the one_liner asks a question, keep it as a question
 
 You will receive a JSON object with client info and candidate statuses.
 Return ONLY the formatted message, no preamble or explanation."""

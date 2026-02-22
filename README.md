@@ -97,16 +97,26 @@ The Check-Ins tab automates weekly client check-in messages. It replaces ~45 min
 
 1. Click **Generate Check-Ins** in the Check-Ins tab
 2. The agent identifies all active clients with DK-submitted candidates (from Slack + Ashby)
-3. For each candidate, it gathers fresh context from four sources in priority order:
+3. For each candidate, it gathers fresh context from four sources. Priority order depends on whether the candidate is tracked in Ashby:
+
+**Candidate is in Ashby ATS:**
 
 | Priority | Source | Signal |
 |----------|--------|--------|
-| 1 (highest) | **Google Calendar** | Scheduled interview → strongest signal of advancement |
-| 2 | **Gmail** | Emails where DK is CC'd — advancement decisions, scheduling, rejections |
-| 3 | **Slack thread** | Client's initial reaction and early-stage decisions |
-| 4 (lowest) | **Ashby ATS** | Baseline pipeline stage (often lags behind real state) |
+| 1 (highest) | **Ashby ATS** | Structured pipeline stage, interview event dates, feedback scores — most reliable when a formal process is running |
+| 2 | **Google Calendar** | Confirms a scheduled interview event |
+| 3 | **Gmail** | Emails from the client's domain — intros, scheduling confirmations, outcomes |
+| 4 (lowest) | **Slack thread** | Early-stage decisions; often goes stale once the ATS takes over |
 
-4. Synthesizes a per-candidate status one-liner reflecting the most current known state
+**Candidate is Slack-only (not in Ashby):**
+
+| Priority | Source | Signal |
+|----------|--------|--------|
+| 1 (highest) | **Google Calendar** | Scheduled interview event |
+| 2 | **Gmail** | Emails from the inferred client domain |
+| 3 (lowest) | **Slack thread** | The submission thread and any channel mentions |
+
+4. A Claude reasoning call synthesizes all raw context (email subjects + snippets, Slack message text, Ashby stage data) into a specific, date-accurate one-liner per candidate. Gmail is filtered to the client's inferred email domain (e.g. Decagon → `decagon.com`) to prevent cross-client attribution errors.
 5. Drafts a professional, client-facing message per client using Claude
 6. Displays all drafts as editable cards for review
 7. Click **Approve & Send** per client (or **Approve All**) to post directly to the Slack Connect channel
@@ -123,11 +133,15 @@ Warm closing sentence.
 
 ### One-liner rules
 
-- **Calendar event exists** → lead with the event: `"onsite is set for 2/25 — excited to see how it goes!"`
-- **Email shows advancement** → reference it: `"advanced to next stage as of 2/14 — any update?"`
-- **Slack thread context only** → reference last decision point: `"coding challenge sent Feb 12 — any update from him?"`
+Claude reasons through the raw content of each source and produces a specific one-liner:
+
+- **Intro email found** → `"introduced February 12th — any updates?"`
+- **Interview scheduled (upcoming)** → `"onsite is set for 2/25 — excited to see how it goes!"`
+- **Interview date passed, no outcome signal** → `"was scheduled for an interview on 2/5 — how did it go?"`
+- **Scheduling confirmation** → `"screen was scheduled for February 20th"`
+- **Slack has relative dates** → Claude resolves them using today's date (e.g. "next Friday" on 2/14 → Feb 20)
 - **No signal** → open question: `"any update on where things stand here?"`
-- Never states uncertain information as fact — ambiguity becomes a question
+- Never uses vague phrases like "recently", "mid-February", or "in progress" when a specific date is available
 
 ### Soft pass handling
 
@@ -222,10 +236,10 @@ weekly_slack_recon/
     ├── nudge.py                # Auto-nudge for stale submissions
     ├── cli.py                  # CLI entry point
     ├── google_auth_helper.py   # Shared Google OAuth2 flow
-    ├── gmail_client.py         # Gmail API — search emails by candidate/client
+    ├── gmail_client.py         # Gmail API — search emails by candidate + inferred client domain
     ├── calendar_client.py      # Google Calendar API — search interview events
-    ├── status_synthesizer.py   # Multi-source status synthesis (priority hierarchy)
-    ├── message_composer.py     # Claude-powered check-in message drafting
+    ├── status_synthesizer.py   # Claude-powered per-candidate status reasoning (Ashby-first priority)
+    ├── message_composer.py     # Claude-powered check-in message drafting (formats synthesized one-liners)
     └── status_check_runner.py  # Check-Ins orchestrator
 ```
 

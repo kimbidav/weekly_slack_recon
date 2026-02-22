@@ -207,13 +207,17 @@ def run_status_check(
         li_key = (submission.linkedin_url or "").strip().lower()
         ashby_record = ashby_records_by_linkedin.get(li_key)
 
-        # Synthesize status
+        # Synthesize status — Claude reasoning when API key is available,
+        # keyword-matching fallback otherwise.
         synthesis = synthesize_candidate_status(
             candidate_name=submission.candidate_name,
             ashby_record=ashby_record,
             slack_thread_messages=thread_messages,
             email_signals=email_signals,
             calendar_events=calendar_events,
+            anthropic_api_key=cfg.anthropic_api_key,
+            model=cfg.status_check_model,
+            today=now,
         )
 
         # Group by channel

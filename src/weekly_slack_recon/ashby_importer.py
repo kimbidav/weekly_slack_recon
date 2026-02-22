@@ -127,6 +127,17 @@ def load_ashby_export(json_path: str) -> List[Dict[str, Any]]:
             "ashby_application_id": candidate.get("applicationId") or None,
             "ashby_candidate_id": candidate.get("id") or None,
             "credited_to": candidate.get("creditedTo") or None,
+
+            # ── Rich interview data (for LLM synthesis) ───────────────────
+            # These fields power the Claude reasoning step in status_synthesizer.py,
+            # enabling specific date references and feedback scores in check-in messages.
+            "decision_status": candidate.get("decisionStatus") or None,
+            "latest_feedback_date": candidate.get("latestFeedbackDate") or None,
+            "current_stage_date": candidate.get("currentStageDate") or None,
+            "current_stage_interviews": candidate.get("currentStageInterviews") or None,
+            "current_stage_avg_score": candidate.get("currentStageAvgScore") or None,
+            "interview_history_summary": candidate.get("interviewHistorySummary") or None,
+            "interview_events": candidate.get("interviewEvents") or [],
         })
 
     return normalized

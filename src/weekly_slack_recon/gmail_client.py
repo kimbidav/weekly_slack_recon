@@ -17,6 +17,18 @@ from googleapiclient.errors import HttpError
 
 from .google_auth_helper import get_credentials
 
+
+def _infer_client_domain(client_name: str) -> str:
+    """Infer the likely email domain for a client from their display name.
+
+    Examples:
+        'Decagon'       → 'decagon.com'
+        'Charta Health' → 'chartahealth.com'
+        'RunLayer'      → 'runlayer.com'
+    """
+    slug = re.sub(r"[^a-z0-9]", "", client_name.lower())
+    return f"{slug}.com"
+
 # OAuth scopes needed
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
@@ -114,15 +126,18 @@ class GmailClient:
         name_variants = _build_name_variants(candidate_name)
         # Use the most specific variant (full name first)
         primary_query = f'"{name_variants[0]}"'
+        first = name_variants[0].split()[0] if name_variants[0] else ""
         if client_name:
-            # Also try with just first name + client name
-            first = name_variants[0].split()[0] if name_variants[0] else ""
+            # Filter by inferred client domain to avoid attributing emails from
+            # one client to a same-named candidate at a different client.
+            domain = _infer_client_domain(client_name)
             query = (
                 f'({primary_query} OR "{first}") '
+                f'from:*{domain}* '
                 f'newer_than:{lookback_days}d'
             )
         else:
-            query = f'{primary_query} newer_than:{lookback_days}d'
+            query = f'({primary_query} OR "{first}") newer_than:{lookback_days}d'
 
         signals: list[EmailSignal] = []
         try:
